@@ -4,8 +4,12 @@ from config import settings
 from database import engine
 import src.api.models as models
 
-# Create all tables on startup
-models.Base.metadata.create_all(bind=engine)
+# Create all tables on startup — non-fatal if DB unreachable (e.g. cold start race)
+try:
+    models.Base.metadata.create_all(bind=engine)
+except Exception as _db_err:
+    import logging
+    logging.warning(f"DB create_all skipped on startup: {_db_err}")
 
 app = FastAPI(
     title="RecruteIA API",
