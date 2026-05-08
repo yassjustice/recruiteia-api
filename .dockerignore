@@ -1,0 +1,11 @@
+.env
+data/*.db
+data/uploads/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+*.ipynb
+venv/
+.venv/
