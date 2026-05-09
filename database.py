@@ -8,6 +8,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 FALLBACK_SQLITE_URL = "sqlite:///./data/recruiteia_fallback.db"
+_schema_ready = False
 
 
 def _build_engine(database_url: str):
@@ -17,6 +18,19 @@ def _build_engine(database_url: str):
         connect_args={"check_same_thread": False} if is_sqlite else {},
         pool_pre_ping=not is_sqlite,
     )
+
+
+def _activate_fallback(reason: Exception | str):
+    global engine, SessionLocal, ACTIVE_DATABASE_URL, USING_FALLBACK_DB, _schema_ready
+    if USING_FALLBACK_DB:
+        return
+    Path("data").mkdir(parents=True, exist_ok=True)
+    engine = _build_engine(FALLBACK_SQLITE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    ACTIVE_DATABASE_URL = FALLBACK_SQLITE_URL
+    USING_FALLBACK_DB = True
+    _schema_ready = False
+    logger.warning("Switched to fallback database %s. Reason: %s", FALLBACK_SQLITE_URL, reason)
 
 
 def _resolve_engine():
@@ -50,11 +64,41 @@ engine, ACTIVE_DATABASE_URL, USING_FALLBACK_DB = _resolve_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+def _ensure_primary_alive():
+    if USING_FALLBACK_DB:
+        return
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as db_err:
+        _activate_fallback(db_err)
+
+
+def _ensure_schema_ready():
+    global _schema_ready
+    if _schema_ready:
+        return
+    try:
+        import src.api.models as models  # local import to avoid module cycles
+        models.Base.metadata.create_all(bind=engine)
+        _schema_ready = True
+    except Exception as schema_err:
+        if not USING_FALLBACK_DB:
+            _activate_fallback(schema_err)
+            import src.api.models as models
+            models.Base.metadata.create_all(bind=engine)
+            _schema_ready = True
+        else:
+            raise
+
+
 class Base(DeclarativeBase):
     pass
 
 
 def get_db():
+    _ensure_primary_alive()
+    _ensure_schema_ready()
     db = SessionLocal()
     try:
         yield db
