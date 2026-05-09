@@ -1,0 +1,175 @@
+{
+  "timestamp": "2026-05-09T15:24:18.355131",
+  "base_url": "https://yassirhakimi-recruiteia-api.hf.space/api",
+  "suites": [
+    {
+      "suite": "Authentication",
+      "total": 9,
+      "passed": 8,
+      "failed": 1,
+      "success_rate": 88.9,
+      "results": [
+        {
+          "status": "pass",
+          "message": "GET /health"
+        },
+        {
+          "status": "pass",
+          "message": "POST /auth/register"
+        },
+        {
+          "status": "pass",
+          "message": "Response success=true"
+        },
+        {
+          "status": "pass",
+          "message": "User created: ID 1"
+        },
+        {
+          "status": "pass",
+          "message": "POST /auth/login"
+        },
+        {
+          "status": "pass",
+          "message": "JWT token obtained: eyJhbGciOiJIUzI1NiIs..."
+        },
+        {
+          "status": "pass",
+          "message": "User email matches"
+        },
+        {
+          "status": "pass",
+          "message": "GET /offers (with token)"
+        },
+        {
+          "status": "fail",
+          "message": "GET /offers (without token \u2192 401)\nExpected: 401, Got: 403\nResponse: {\"detail\":\"Not authenticated\"}"
+        }
+      ]
+    },
+    {
+      "suite": "JD Extraction",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "success_rate": 100.0,
+      "results": [
+        {
+          "status": "pass",
+          "message": "POST /offers/extract (text)"
+        },
+        {
+          "status": "pass",
+          "message": "Response success=true"
+        },
+        {
+          "status": "pass",
+          "message": "Job title contains 'Engineer': Software Engineer"
+        },
+        {
+          "status": "pass",
+          "message": "Python in required_skills: ['Python', 'SQL', 'PostgreSQL', 'FastAPI', 'Django', 'Docker', 'AWS']"
+        },
+        {
+          "status": "pass",
+          "message": "Critical skills identified: ['Python', 'SQL', 'PostgreSQL']"
+        },
+        {
+          "status": "pass",
+          "message": "Experience years = 3: 3"
+        },
+        {
+          "status": "pass",
+          "message": "Location extracted: Casablanca, Morocco or Remote"
+        },
+        {
+          "status": "pass",
+          "message": "POST /offers (create)"
+        },
+        {
+          "status": "pass",
+          "message": "Job offer created: ID 1"
+        },
+        {
+          "status": "pass",
+          "message": "GET /offers"
+        },
+        {
+          "status": "pass",
+          "message": "Retrieved 1 offer(s)"
+        }
+      ]
+    },
+    {
+      "suite": "CV Extraction",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "success_rate": 100.0,
+      "results": [
+        {
+          "status": "pass",
+          "message": "GET /cvs"
+        },
+        {
+          "status": "pass",
+          "message": "Retrieved 0 CV(s)"
+        }
+      ]
+    },
+    {
+      "suite": "Scoring & Sessions",
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "success_rate": 50.0,
+      "results": [
+        {
+          "status": "pass",
+          "message": "Job offer found: ID 1"
+        },
+        {
+          "status": "fail",
+          "message": "No CVs available for scoring"
+        }
+      ]
+    },
+    {
+      "suite": "Endpoint Validation",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "success_rate": 100.0,
+      "results": [
+        {
+          "status": "pass",
+          "message": "GET /health \u2192 200"
+        },
+        {
+          "status": "pass",
+          "message": "POST /auth/register \u2192 200"
+        },
+        {
+          "status": "pass",
+          "message": "POST /auth/login \u2192 401"
+        },
+        {
+          "status": "pass",
+          "message": "GET /offers \u2192 200"
+        },
+        {
+          "status": "pass",
+          "message": "GET /cvs \u2192 200"
+        },
+        {
+          "status": "pass",
+          "message": "GET /sessions \u2192 200"
+        }
+      ]
+    }
+  ],
+  "total_tests": 30,
+  "total_passed": 28,
+  "total_failed": 2,
+  "success_rate": 93.3
+}

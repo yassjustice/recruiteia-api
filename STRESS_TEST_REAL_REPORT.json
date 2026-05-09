@@ -1,0 +1,159 @@
+{
+  "jd_extraction": {
+    "total": 12,
+    "passed": 12,
+    "avg_time": 0.5128839214642843,
+    "min_time": 0.41882944107055664,
+    "max_time": 0.6178367137908936,
+    "results": [
+      {
+        "index": 0,
+        "status": "OK",
+        "duration": 0.5415205955505371,
+        "title": "Senior Python Developer",
+        "skills": 3
+      },
+      {
+        "index": 1,
+        "status": "OK",
+        "duration": 0.490612268447876,
+        "title": "Data Scientist",
+        "skills": 3
+      },
+      {
+        "index": 2,
+        "status": "OK",
+        "duration": 0.41882944107055664,
+        "title": "DevOps Engineer",
+        "skills": 3
+      },
+      {
+        "index": 3,
+        "status": "OK",
+        "duration": 0.5039262771606445,
+        "title": "Full-stack Developer",
+        "skills": 2
+      },
+      {
+        "index": 4,
+        "status": "OK",
+        "duration": 0.47847485542297363,
+        "title": "Senior Python Developer",
+        "skills": 3
+      },
+      {
+        "index": 5,
+        "status": "OK",
+        "duration": 0.5573570728302002,
+        "title": "Data Scientist",
+        "skills": 3
+      },
+      {
+        "index": 6,
+        "status": "OK",
+        "duration": 0.4979255199432373,
+        "title": "DevOps Engineer",
+        "skills": 3
+      },
+      {
+        "index": 7,
+        "status": "OK",
+        "duration": 0.5147240161895752,
+        "title": "Full-stack Developer",
+        "skills": 2
+      },
+      {
+        "index": 8,
+        "status": "OK",
+        "duration": 0.5089585781097412,
+        "title": "Senior Python Developer",
+        "skills": 3
+      },
+      {
+        "index": 9,
+        "status": "OK",
+        "duration": 0.6178367137908936,
+        "title": "Data Scientist",
+        "skills": 3
+      },
+      {
+        "index": 10,
+        "status": "OK",
+        "duration": 0.5091471672058105,
+        "title": "DevOps Engineer",
+        "skills": 3
+      },
+      {
+        "index": 11,
+        "status": "OK",
+        "duration": 0.5152945518493652,
+        "title": "Full-stack Developer",
+        "skills": 2
+      }
+    ]
+  },
+  "cv_uploads": {
+    "total": 5,
+    "passed": 5,
+    "avg_time": 0.5286015510559082,
+    "min_time": 0.34563469886779785,
+    "max_time": 0.7031121253967285,
+    "cv_ids": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "results": [
+      {
+        "index": 0,
+        "status": "OK",
+        "cv_id": 1,
+        "duration": 0.6125712394714355,
+        "name": "",
+        "skills": 0
+      },
+      {
+        "index": 1,
+        "status": "OK",
+        "cv_id": 2,
+        "duration": 0.42433595657348633,
+        "name": "",
+        "skills": 0
+      },
+      {
+        "index": 2,
+        "status": "OK",
+        "cv_id": 3,
+        "duration": 0.7031121253967285,
+        "name": "",
+        "skills": 0
+      },
+      {
+        "index": 3,
+        "status": "OK",
+        "cv_id": 4,
+        "duration": 0.5573537349700928,
+        "name": "",
+        "skills": 0
+      },
+      {
+        "index": 4,
+        "status": "OK",
+        "cv_id": 5,
+        "duration": 0.34563469886779785,
+        "name": "",
+        "skills": 0
+      }
+    ]
+  },
+  "scoring": {
+    "session_id": 1,
+    "status": "completed",
+    "num_cvs": 5,
+    "total_time": 0.5759713649749756,
+    "polling_rounds": 1,
+    "avg_poll_time": 0.1505262851715088
+  }
+}
