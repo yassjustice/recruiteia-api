@@ -1,0 +1,19 @@
+RISE HIRE - ONE PAGE LOGIN CREDENTIALS (DEV + INITIAL ACCOUNTS)
+Generated: 2026-05-08
+
+1) Documented Dev/Test Login (from docs/API.md)
+- Email: recruiter@company.ma
+- Password: StrongPass@123
+- Notes: This pair is used in the API documentation examples for register/login flows.
+
+2) Initial Seeded Accounts in Backend Code
+- Result: NONE FOUND
+- Notes: The backend does not seed default users in code (no hardcoded initial user credentials detected).
+
+3) Accounts Already Created in Database
+- Plaintext passwords are NOT retrievable from backend code (only hashed_password is stored by design).
+- Current environment could not resolve the configured remote DB host during lookup, so live account listing could not be fetched from this machine.
+
+4) Practical Recovery for Existing Accounts
+- Use normal login if you know the original password.
+- If a password is lost, create a new account via POST /api/auth/register, then log in via POST /api/auth/login.

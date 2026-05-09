@@ -33,10 +33,17 @@ def _run_scoring(session_id: int, db: Session):
             "required_skills": job.required_skills or [],
             "critical_skills": job.critical_skills or [],
             "soft_skills": job.soft_skills or [],
+            "required_soft_skills": job.soft_skills or [],
             "experience_required_years": job.experience_required_years or 0,
             "education_required": job.education_required or "",
+            "min_education": job.education_required or "",
             "languages_required": job.languages_required or [],
+            "required_languages": job.languages_required or [],
             "location": job.location or "",
+            "remote_ok": (job.location or "").strip().lower() in ("remote", "télétravail", "distanciel"),
+            "description_summary": job.description or "",
+            "domain": job.domain or "",
+            "job_type": job.job_type or "",
         }
         weights = {
             "skills": session.weights_skills,
@@ -55,6 +62,15 @@ def _run_scoring(session_id: int, db: Session):
                 "education_level": cv.education_level or "",
                 "languages_spoken": cv.languages_spoken or [],
                 "location": cv.candidate_location or "",
+                "language": cv.language or "fr",
+                "profile": cv.profile or "",
+                "experience": cv.experience or [],
+                "projects": cv.projects or [],
+                "skills_in_experience": cv.skills_in_experience or [],
+                "quantified_achievements": cv.quantified_achievements or [],
+                "action_verb_scores": cv.action_verb_scores or {},
+                "buzzword_analysis": cv.buzzword_analysis or {},
+                "confidence_score": cv.confidence_score or 0,
             }
             for cv in cvs
         ]
@@ -77,6 +93,7 @@ def _run_scoring(session_id: int, db: Session):
                 mr.language_score = row["language_score"]
                 mr.location_score = row["location_score"]
                 mr.matched_skills = row.get("matched_skills", [])
+                mr.missing_skills = row.get("missing_skills", [])
                 mr.missing_critical = row.get("missing_critical", [])
 
         session.status = "completed"

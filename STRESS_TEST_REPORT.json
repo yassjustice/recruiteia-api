@@ -1,0 +1,405 @@
+{
+  "timestamp": "2026-05-09 15:14:50",
+  "tests": [
+    {
+      "test_name": "File Size Limits",
+      "duration_seconds": 0.0,
+      "total_runs": 5,
+      "passed": 3,
+      "failed": 2,
+      "success_rate": 60.0,
+      "results": [
+        {
+          "test": "Small CV (0.5 MB)",
+          "status": "passed",
+          "reason": "accepted",
+          "size_bytes": 8509
+        },
+        {
+          "test": "Medium CV (2 MB)",
+          "status": "passed",
+          "reason": "accepted",
+          "size_bytes": 34009
+        },
+        {
+          "test": "Exactly 5 MB (limit)",
+          "status": "passed",
+          "reason": "accepted",
+          "size_bytes": 85009
+        },
+        {
+          "test": "Slightly over 5 MB",
+          "status": "failed",
+          "expected": "rejected",
+          "actual": "accepted",
+          "size_bytes": 86709
+        },
+        {
+          "test": "10 MB (well over)",
+          "status": "failed",
+          "expected": "rejected",
+          "actual": "accepted",
+          "size_bytes": 170009
+        }
+      ]
+    },
+    {
+      "test_name": "Malformed File Handling",
+      "duration_seconds": 0.0,
+      "total_runs": 4,
+      "passed": 4,
+      "failed": 0,
+      "success_rate": 100.0,
+      "results": [
+        {
+          "test": "Empty file",
+          "status": "passed",
+          "reason": "accepted_for_extraction",
+          "filename": "empty_file.pdf"
+        },
+        {
+          "test": "Text masquerading as PDF",
+          "status": "passed",
+          "reason": "accepted_for_extraction",
+          "filename": "text_file.pdf"
+        },
+        {
+          "test": "Truncated PDF",
+          "status": "passed",
+          "reason": "accepted_for_extraction",
+          "filename": "truncated.pdf"
+        },
+        {
+          "test": "Wrong extension (.txt)",
+          "status": "passed",
+          "reason": "correctly_rejected",
+          "filename": "wrong_extension.txt"
+        }
+      ]
+    },
+    {
+      "test_name": "Concurrent Processing (5 jobs)",
+      "duration_seconds": 0.33,
+      "total_runs": 5,
+      "passed": 0,
+      "failed": 0,
+      "success_rate": 0.0,
+      "results": [
+        {
+          "cv_id": 0,
+          "status": "completed",
+          "duration": 0.3272411823272705
+        },
+        {
+          "cv_id": 1,
+          "status": "completed",
+          "duration": 0.30326318740844727
+        },
+        {
+          "cv_id": 2,
+          "status": "completed",
+          "duration": 0.30326318740844727
+        },
+        {
+          "cv_id": 3,
+          "status": "completed",
+          "duration": 0.30326318740844727
+        },
+        {
+          "cv_id": 4,
+          "status": "completed",
+          "duration": 0.18175005912780762
+        }
+      ]
+    },
+    {
+      "test_name": "High-Volume Batch (50 CVs)",
+      "duration_seconds": 0.0,
+      "total_runs": 50,
+      "passed": 0,
+      "failed": 0,
+      "success_rate": 0.0,
+      "results": [
+        {
+          "cv_index": 0,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 1,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 2,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 3,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 4,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 5,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 6,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 7,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 8,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 9,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 10,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 11,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 12,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 13,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 14,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 15,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 16,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 17,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 18,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 19,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 20,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 21,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 22,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 23,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 24,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 25,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 26,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 27,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 28,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 29,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 30,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 31,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 32,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 33,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 34,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 35,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 36,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 37,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 38,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 39,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 40,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 41,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 42,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 43,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 44,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 45,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 46,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 47,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 48,
+          "status": "processed",
+          "extraction_attempted": true
+        },
+        {
+          "cv_index": 49,
+          "status": "processed",
+          "extraction_attempted": true
+        }
+      ]
+    },
+    {
+      "test_name": "Scoring Scalability",
+      "duration_seconds": 0.0,
+      "total_runs": 3,
+      "passed": 0,
+      "failed": 3,
+      "success_rate": 0.0,
+      "results": [
+        {
+          "num_candidates": 10,
+          "status": "failed",
+          "error": "float division by zero"
+        },
+        {
+          "num_candidates": 50,
+          "status": "failed",
+          "error": "float division by zero"
+        },
+        {
+          "num_candidates": 100,
+          "status": "failed",
+          "error": "float division by zero"
+        }
+      ]
+    }
+  ],
+  "total_duration": 0.33,
+  "total_tests": 67,
+  "total_passed": 7,
+  "total_failed": 5
+}

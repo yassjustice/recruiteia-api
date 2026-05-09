@@ -233,6 +233,7 @@ Authorization: Bearer <token>
 }
 ```
 Use this to auto-fill the Create Offer form. Pass the response `data` directly as the body to `POST /api/offers`.
+The extractor can also return extra metadata keys (for internal scoring/enrichment); frontend can safely ignore unknown keys.
 
 **Errors:** `400 { "detail": "text is required" }`
 
@@ -291,7 +292,7 @@ const res = await fetch(`${BASE_URL}/api/cvs`, {
 **Notes:**
 - `is_duplicate: true` means this exact file was already uploaded (MD5 hash match). Still returns `200` — the CV is saved.
 - `extraction_error: "no_text_extracted"` means the PDF had no readable text (scanned/image PDF). CV is still stored.
-- `confidence_score`: 0.0–1.0. Below 0.5 = unreliable extraction.
+- `confidence_score`: 0–100. Below 50 = unreliable extraction.
 
 **Errors:**
 | Code | `detail` | Cause |
