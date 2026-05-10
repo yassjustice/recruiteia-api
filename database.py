@@ -1,5 +1,11 @@
 import logging
+import os
+import platform as _platform
 from pathlib import Path
+
+# Avoid slow/hanging WMI lookup on some Windows hosts during SQLAlchemy import.
+if os.name == "nt":
+    _platform.machine = lambda: os.environ.get("PROCESSOR_ARCHITECTURE", "AMD64")
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase

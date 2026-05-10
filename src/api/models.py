@@ -1,49 +1,86 @@
-from datetime import datetime
+from uuid import uuid4
+
 from sqlalchemy import (
-    Column, Integer, String, Float, Text, DateTime,
-    ForeignKey, Boolean, JSON
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Uuid,
+    func,
 )
 from sqlalchemy.orm import relationship
-import sys, pathlib
+
+import sys
+import pathlib
+
 sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 from database import Base
+
+
+def _default_weights():
+    return {
+        "skills_match": 0.30,
+        "experience_relevance": 0.22,
+        "achievements": 0.15,
+        "language_quality": 0.10,
+        "language_match": 0.10,
+        "education": 0.08,
+        "location": 0.05,
+    }
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     full_name = Column(String, nullable=False)
-    role = Column(String, default="recruiter")  # recruiter | admin
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="recruiter")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
 
     job_offers = relationship("JobOffer", back_populates="owner")
+    cvs = relationship("CV", back_populates="owner")
     screening_sessions = relationship("ScreeningSession", back_populates="owner")
 
 
 class JobOffer(Base):
     __tablename__ = "job_offers"
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    description = Column(Text, nullable=False)
-    required_skills = Column(JSON, default=list)      # list[str]
-    critical_skills = Column(JSON, default=list)      # list[str] — must-have
-    soft_skills = Column(JSON, default=list)          # list[str]
-    experience_required_years = Column(Integer, default=0)
-    education_required = Column(String, default="")
-    languages_required = Column(JSON, default=list)   # list[{language, level}]
-    location = Column(String, default="")
-    job_type = Column(String, default="CDI")          # CDI | CDD | Stage | Freelance
-    domain = Column(String, default="")
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    job_title = Column(String, nullable=False)
+    company_name = Column(String, nullable=False)
+    industry = Column(String, nullable=True)
+    job_type = Column(String, nullable=True)
+    job_function = Column(String, nullable=True)
+    seniority = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    remote_ok = Column(Boolean, nullable=False, default=False)
+
+    raw_text = Column(Text, nullable=True)
+    description_summary = Column(Text, nullable=True)
+
+    required_skills = Column(JSON, nullable=False, default=list)
+    critical_skills = Column(JSON, nullable=False, default=list)
+    normalized_skills = Column(JSON, nullable=False, default=list)
+    required_soft_skills = Column(JSON, nullable=False, default=list)
+    required_languages = Column(JSON, nullable=False, default=list)
+
+    min_education = Column(String, nullable=True)
+    education_field = Column(String, nullable=True)
+    experience_required_years = Column(Integer, nullable=True)
+
+    status = Column(String, nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
     owner = relationship("User", back_populates="job_offers")
     sessions = relationship("ScreeningSession", back_populates="job_offer")
 
@@ -51,71 +88,65 @@ class JobOffer(Base):
 class CV(Base):
     __tablename__ = "cvs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
-    original_filename = Column(String, nullable=False)
-    file_size = Column(Integer, default=0)
-    content_hash = Column(String, default="")          # md5 for duplicate detection
-    is_duplicate = Column(Boolean, default=False)
-    duplicate_of = Column(Integer, ForeignKey("cvs.id"), nullable=True)
-    extraction_error = Column(String, nullable=True)
+    file_size_bytes = Column(Integer, nullable=True)
+    language = Column(String, nullable=True)
+    content_hash = Column(String, nullable=True)
+    is_duplicate = Column(Boolean, nullable=False, default=False)
+    duplicate_of = Column(Uuid(as_uuid=True), ForeignKey("cvs.id"), nullable=True)
+    extraction_status = Column(String, nullable=False, default="pending")
 
-    # Candidate extracted fields
-    candidate_name = Column(String, default="")
-    candidate_email = Column(String, default="")
-    candidate_phone = Column(String, default="")
-    candidate_location = Column(String, default="")
-    candidate_linkedin = Column(String, default="")
-    candidate_github = Column(String, default="")
-    language = Column(String, default="en")            # 'fr' | 'en'
-    profile = Column(Text, default="")
-    experience = Column(JSON, default=list)            # list[str] (experience blocks)
-    education = Column(JSON, default=list)             # list[str]
-    projects = Column(JSON, default=list)
-    certifications = Column(JSON, default=list)
-    skills = Column(JSON, default=list)                # list[str] canonical
-    soft_skills = Column(JSON, default=list)
-    skills_in_experience = Column(JSON, default=list)
-    languages_spoken = Column(JSON, default=list)      # list[{language, level}]
-    interests = Column(JSON, default=list)
-    experience_years = Column(Float, default=0.0)
-    education_level = Column(String, default="")       # Bachelor | Master | PhD | BTS | Bac
-    industry = Column(String, default="")
+    candidate_name = Column(String, nullable=True)
+    candidate_email = Column(String, nullable=True)
+    candidate_phone = Column(String, nullable=True)
+    candidate_location = Column(String, nullable=True)
+    candidate_linkedin = Column(String, nullable=True)
+    candidate_github = Column(String, nullable=True)
 
-    # Quality signals from extractor
-    confidence_score = Column(Float, default=0.0)
-    flags = Column(JSON, default=list)                 # list[str] warnings
-    action_verb_scores = Column(JSON, default=dict)
-    buzzword_analysis = Column(JSON, default=dict)
-    quantified_achievements = Column(JSON, default=list)
+    raw_text = Column(Text, nullable=True)
+    profile = Column(Text, nullable=True)
+    experience = Column(Text, nullable=True)
+    education = Column(Text, nullable=True)
+    projects = Column(Text, nullable=True)
 
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    skills = Column(JSON, nullable=False, default=list)
+    skills_in_experience = Column(JSON, nullable=False, default=list)
+    orphan_skills = Column(JSON, nullable=False, default=list)
+    soft_skills = Column(JSON, nullable=False, default=list)
+    languages_spoken = Column(JSON, nullable=False, default=list)
 
+    experience_years = Column(Integer, default=0)
+    education_level = Column(String, nullable=True)
+    industry = Column(String, nullable=True)
+    quantified_achievements = Column(JSON, nullable=False, default=dict)
+    action_verb_scores = Column(JSON, nullable=False, default=dict)
+    buzzword_analysis = Column(JSON, nullable=False, default=dict)
+    confidence_score = Column(JSON, nullable=False, default=dict)
+    flags = Column(JSON, nullable=False, default=list)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    owner = relationship("User", back_populates="cvs")
     matching_results = relationship("MatchingResult", back_populates="cv")
 
 
 class ScreeningSession(Base):
     __tablename__ = "screening_sessions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    status = Column(String, default="pending")         # pending | scoring | completed | failed
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    offer_id = Column(Uuid(as_uuid=True), ForeignKey("job_offers.id", ondelete="CASCADE"), nullable=False)
 
-    # Scoring weights (must sum to 1.0)
-    weights_skills = Column(Float, default=0.35)
-    weights_experience = Column(Float, default=0.25)
-    weights_education = Column(Float, default=0.15)
-    weights_language = Column(Float, default=0.15)
-    weights_location = Column(Float, default=0.10)
-    weights_soft_skills = Column(Float, default=0.00)  # reserved for V2
-
-    total_cvs = Column(Integer, default=0)
-    processed_cvs = Column(Integer, default=0)
-    scored_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    job_offer_id = Column(Integer, ForeignKey("job_offers.id"), nullable=False)
+    weights = Column(JSON, nullable=False, default=_default_weights)
+    status = Column(String, nullable=False, default="pending")
+    total_cvs = Column(Integer, nullable=False, default=0)
+    processed_cvs = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     owner = relationship("User", back_populates="screening_sessions")
     job_offer = relationship("JobOffer", back_populates="sessions")
@@ -125,31 +156,38 @@ class ScreeningSession(Base):
 class MatchingResult(Base):
     __tablename__ = "matching_results"
 
-    id = Column(Integer, primary_key=True, index=True)
-    rank = Column(Integer, default=0)
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    session_id = Column(Uuid(as_uuid=True), ForeignKey("screening_sessions.id", ondelete="CASCADE"), nullable=False)
+    cv_id = Column(Uuid(as_uuid=True), ForeignKey("cvs.id", ondelete="CASCADE"), nullable=False)
+    offer_id = Column(Uuid(as_uuid=True), ForeignKey("job_offers.id", ondelete="CASCADE"), nullable=False)
 
-    # Dimension scores (0.0–1.0)
-    skills_score = Column(Float, default=0.0)
-    experience_score = Column(Float, default=0.0)
-    education_score = Column(Float, default=0.0)
-    language_score = Column(Float, default=0.0)
-    location_score = Column(Float, default=0.0)
-    soft_skills_score = Column(Float, default=0.0)
-    final_score = Column(Float, default=0.0)           # weighted sum
+    total_score = Column(Float, nullable=False, default=0.0)
+    rank = Column(Integer, nullable=False, default=0)
+    recommendation = Column(String, nullable=False, default="Not Recommended")
 
-    # Explanation fields
-    matched_skills = Column(JSON, default=list)        # list[str]
-    missing_skills = Column(JSON, default=list)        # list[str] critical missing
-    missing_critical = Column(JSON, default=list)      # list[str] must-have skills absent
+    skills_score = Column(Float, nullable=True)
+    experience_score = Column(Float, nullable=True)
+    achievements_score = Column(Float, nullable=True)
+    language_quality_score = Column(Float, nullable=True)
+    language_match_score = Column(Float, nullable=True)
+    education_score = Column(Float, nullable=True)
+    location_score = Column(Float, nullable=True)
 
-    # Recruiter actions
-    status = Column(String, default="pending")         # pending | shortlisted | rejected
-    recruiter_note = Column(Text, default="")
+    experience_relevance_reason = Column(Text, nullable=True)
+    matched_skills = Column(JSON, nullable=False, default=list)
+    missing_skills = Column(JSON, nullable=False, default=list)
+    critical_missing = Column(JSON, nullable=False, default=list)
+    language_details = Column(JSON, nullable=False, default=list)
+    flags = Column(JSON, nullable=False, default=list)
 
-    scored_at = Column(DateTime, default=datetime.utcnow)
+    confidence_multiplier_applied = Column(Boolean, nullable=False, default=False)
+    student_profile_detected = Column(Boolean, nullable=False, default=False)
+    missing_critical_count = Column(Integer, nullable=False, default=0)
 
-    session_id = Column(Integer, ForeignKey("screening_sessions.id"), nullable=False)
-    cv_id = Column(Integer, ForeignKey("cvs.id"), nullable=False)
+    semantic_score = Column(Float, nullable=True)
+    recruiter_note = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default="scored")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session = relationship("ScreeningSession", back_populates="matching_results")
     cv = relationship("CV", back_populates="matching_results")

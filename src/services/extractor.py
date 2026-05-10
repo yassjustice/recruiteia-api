@@ -20,8 +20,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
 GROQ_MODEL = "llama-3.3-70b-versatile"
+_groq_client: Optional[Groq] = None
+
+
+def _get_groq_client() -> Groq:
+    global _groq_client
+    if _groq_client is None:
+        _groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+    return _groq_client
 
 # ── Skill Taxonomy ─────────────────────────────────────────────────────────────
 SKILL_TAXONOMY = {
@@ -229,7 +236,7 @@ Resume text:
 \"\"\"
 """
     try:
-        resp = groq_client.chat.completions.create(
+        resp = _get_groq_client().chat.completions.create(
             model=GROQ_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,

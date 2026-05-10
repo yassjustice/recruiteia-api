@@ -1,28 +1,24 @@
-# RecruteIA API – Frontend Integration Guide
+# RecruteIA API (V2 Schema)
 
 **Base URL (production):** `https://yassirhakimi-recruiteia-api.hf.space/api`  
-**Base URL (local dev):** `http://localhost:7860/api`  
-**OpenAPI docs:** `<base>/docs` (Swagger UI)
+**Base URL (local):** `http://localhost:7860/api`
 
-All endpoints return JSON. File upload uses `multipart/form-data`. All other requests use `application/json`.
+## Breaking changes (V1 -> V2)
+
+| Area | V1 | V2 |
+|---|---|---|
+| IDs | Integer (`123`) | UUID string (`"a1b2..."`) |
+| Session weights | Separate fields (`weights_skills`, ...) | JSON object (`weights`) |
+| CV confidence | float | JSON object |
+| Result score | `final_score` | `total_score` (`final_score` still returned for compatibility) |
+| Critical missing skills | `missing_critical` | `critical_missing` (`missing_critical` still returned for compatibility) |
 
 ---
 
-## 1. Authentication Flow
+## Auth
 
-### Overview
-```
-POST /auth/register  → create account
-POST /auth/login     → get access_token (JWT, 24h expiry)
-                     → attach as  Authorization: Bearer <token>  on every protected request
-```
+### POST `/auth/register`
 
-### 1.1 Register
-```
-POST /api/auth/register
-Content-Type: application/json
-```
-**Request body:**
 ```json
 {
   "email": "recruiter@company.ma",
@@ -31,672 +27,335 @@ Content-Type: application/json
   "role": "recruiter"
 }
 ```
-**Success `200`:**
+
+Success:
+
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
+    "id": "0f6c1e2f-8cc1-4d33-a6ee-2f3df69f1fcb",
     "email": "recruiter@company.ma",
     "full_name": "Yassir Hakimi",
     "role": "recruiter",
-    "created_at": "2024-01-15T10:00:00.000000"
+    "created_at": "2026-05-10T02:00:00Z"
   }
 }
 ```
-**Errors:**
-| Code | `detail` | Cause |
-|------|----------|-------|
-| 400 | `Email already registered` | Duplicate email |
-| 422 | Validation error object | Missing / invalid fields |
 
----
+### POST `/auth/login`
 
-### 1.2 Login
-```
-POST /api/auth/login
-Content-Type: application/json
-```
-**Request body:**
 ```json
 {
   "email": "recruiter@company.ma",
   "password": "StrongPass@123"
 }
 ```
-**Success `200`:**
+
+Success:
+
 ```json
 {
   "success": true,
   "data": {
-    "access_token": "eyJhbGc...",
+    "access_token": "jwt-token",
     "token_type": "bearer",
     "user": {
-      "id": 1,
+      "id": "0f6c1e2f-8cc1-4d33-a6ee-2f3df69f1fcb",
       "email": "recruiter@company.ma",
       "full_name": "Yassir Hakimi",
       "role": "recruiter",
-      "created_at": "2024-01-15T10:00:00.000000"
+      "created_at": "2026-05-10T02:00:00Z"
     }
   }
 }
 ```
-**Errors:**
-| Code | `detail` | Cause |
-|------|----------|-------|
-| 401 | `Invalid credentials` | Wrong email or password |
 
-**Frontend — store the token:**
-```js
-// After login, persist it:
-localStorage.setItem("recruteIA_token", data.access_token);
-localStorage.setItem("recruteIA_user", JSON.stringify(data.user));
+Use token on protected routes:
 
-// Attach to every request:
-const token = localStorage.getItem("recruteIA_token");
-headers["Authorization"] = `Bearer ${token}`;
-```
+`Authorization: Bearer <access_token>`
 
 ---
 
-## 2. Job Offers
+## Offers
 
-All offer endpoints require `Authorization: Bearer <token>`.
+### POST `/offers`
 
-### 2.1 Create Offer
-```
-POST /api/offers
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-**Request body (exact field names — use these):**
+Supports both V2 and legacy V1 payload names.
+
+**V2 payload (recommended):**
+
 ```json
 {
-  "title": "Développeur Backend Python",
-  "description": "Texte libre de la fiche de poste...",
+  "job_title": "Senior Python Developer",
+  "company_name": "RecruteIA",
+  "industry": "Tech",
+  "job_type": "CDI",
+  "job_function": "Software Engineering",
+  "seniority": "Senior",
+  "location": "Casablanca",
+  "remote_ok": false,
+  "raw_text": "Full JD text...",
+  "description_summary": "FastAPI backend role",
   "required_skills": ["Python", "FastAPI", "PostgreSQL"],
   "critical_skills": ["Python"],
-  "soft_skills": ["Autonomie", "Communication"],
+  "normalized_skills": [{"raw": "Python", "normalized": "Python", "category": "other"}],
+  "required_soft_skills": ["Communication", "Autonomy"],
+  "required_languages": [{"language": "French", "min_level": "C1", "weight": 0.6}],
+  "min_education": "Bachelor",
+  "education_field": "Computer Science",
   "experience_required_years": 3,
-  "education_required": "Bac+5",
-  "languages_required": [{"language": "Français", "level": "C1"}],
+  "status": "active"
+}
+```
+
+**Legacy V1 payload (still accepted):**
+
+```json
+{
+  "title": "Senior Python Developer",
+  "description": "Full JD text...",
+  "required_skills": ["Python", "FastAPI", "PostgreSQL"],
+  "critical_skills": ["Python"],
+  "soft_skills": ["Communication"],
+  "languages_required": [{"language": "French", "level": "C1"}],
+  "education_required": "Bachelor",
+  "experience_required_years": 3,
   "location": "Casablanca",
   "job_type": "CDI",
-  "domain": "IT"
-}
-```
-> ⚠️ **Do NOT use** `experience_years`. The field is `experience_required_years`.
-
-**Success `200`:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "title": "Développeur Backend Python",
-    "description": "...",
-    "required_skills": ["Python", "FastAPI", "PostgreSQL"],
-    "critical_skills": ["Python"],
-    "soft_skills": [],
-    "experience_required_years": 3,
-    "education_required": "Bac+5",
-    "languages_required": [],
-    "location": "Casablanca",
-    "job_type": "CDI",
-    "domain": "IT",
-    "is_active": true,
-    "owner_id": 1,
-    "created_at": "2024-01-15T10:00:00.000000"
-  }
+  "domain": "Tech"
 }
 ```
 
----
+### GET `/offers`
 
-### 2.2 List Offers
-```
-GET /api/offers
-Authorization: Bearer <token>
-```
-Returns only the authenticated user's active offers.
+Returns active offers for authenticated user.
 
-**Success `200`:**
-```json
-{ "success": true, "data": [ /* array of JobOfferOut */ ] }
-```
+### GET `/offers/{offer_id}`
 
----
+`offer_id` is UUID.
 
-### 2.3 Get Single Offer
-```
-GET /api/offers/{offer_id}
-Authorization: Bearer <token>
-```
-**Errors:** `404 { "detail": "Offer not found" }`
+### PUT `/offers/{offer_id}`
 
----
+Same payload as create.
 
-### 2.4 Update Offer
-```
-PUT /api/offers/{offer_id}
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-Full replacement — send all fields (same body as Create).
+### DELETE `/offers/{offer_id}`
 
----
+Soft-close offer (`status = "closed"`).
 
-### 2.5 Delete Offer
-```
-DELETE /api/offers/{offer_id}
-Authorization: Bearer <token>
-```
-**Success `200`:** `{ "success": true, "data": { "deleted": true } }`
+### POST `/offers/extract`
 
-Soft-delete: sets `is_active = false`.
-
----
-
-### 2.6 Extract Offer from Raw JD Text (AI)
-```
-POST /api/offers/extract
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-**Request body:**
 ```json
 {
-  "text": "We are looking for a Python developer with 3 years experience...",
+  "text": "Raw job description text...",
   "lang": "fr"
 }
 ```
-`lang` is optional (default `"fr"`). Use `"en"` for English JDs.
-
-> ⚠️ **Field name is `text`**, not `job_description`.
-
-**Success `200`:**
-```json
-{
-  "success": true,
-  "data": {
-    "title": "Python Developer",
-    "domain": "IT",
-    "job_type": "CDI",
-    "location": "Casablanca",
-    "required_skills": ["Python", "FastAPI", "PostgreSQL"],
-    "critical_skills": ["FastAPI", "PostgreSQL"],
-    "soft_skills": [],
-    "experience_required_years": 3,
-    "education_required": "Bac+5",
-    "languages_required": []
-  }
-}
-```
-Use this to auto-fill the Create Offer form. Pass the response `data` directly as the body to `POST /api/offers`.
-The extractor can also return extra metadata keys (for internal scoring/enrichment); frontend can safely ignore unknown keys.
-
-**Errors:** `400 { "detail": "text is required" }`
 
 ---
 
-## 3. CVs
+## CVs
 
-### 3.1 Upload CV
-```
-POST /api/cvs
-Content-Type: multipart/form-data
-Authorization: Bearer <token>
-```
-**Form field:** `file` — must be a `.pdf` file, max **5 MB**.
+### POST `/cvs`
 
-**JavaScript example:**
-```js
-const formData = new FormData();
-formData.append("file", fileInputElement.files[0]);
+`multipart/form-data` with `file` (PDF, <= 5 MB).
 
-const res = await fetch(`${BASE_URL}/api/cvs`, {
-  method: "POST",
-  headers: { "Authorization": `Bearer ${token}` },
-  // ⚠️ Do NOT set Content-Type manually — browser sets it with boundary
-  body: formData,
-});
-```
+Success (trimmed):
 
-**Success `200`:**
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
-    "original_filename": "jean_dupont_cv.pdf",
-    "candidate_name": "Jean Dupont",
-    "candidate_email": "jean@dupont.ma",
-    "candidate_phone": "+212 600 000000",
-    "candidate_location": "Casablanca",
-    "candidate_linkedin": "linkedin.com/in/jeandupont",
-    "candidate_github": "",
+    "id": "b6d7f7f3-6832-4ea6-92dd-0e51d0f2ff80",
+    "filename": "cv.pdf",
+    "original_filename": "cv.pdf",
+    "file_path": "data/uploads/....pdf",
+    "file_size_bytes": 143002,
     "language": "fr",
-    "skills": ["Python", "Django", "SQL"],
-    "soft_skills": ["Autonomie"],
-    "experience_years": 4.5,
-    "education_level": "Bac+5",
-    "confidence_score": 0.87,
-    "flags": [],
-    "is_duplicate": false,
-    "extraction_error": null,
-    "uploaded_at": "2024-01-15T10:05:00.000000"
+    "candidate_name": "John Doe",
+    "skills": ["Python", "SQL"],
+    "skills_in_experience": ["Python"],
+    "orphan_skills": ["TensorFlow"],
+    "confidence_score": {
+      "confidence": 82,
+      "missing_fields": []
+    },
+    "confidence_score_value": 82,
+    "flags": [
+      {"code": "no_experience_section", "severity": "critical", "message": "no experience section"}
+    ],
+    "extraction_status": "done",
+    "created_at": "2026-05-10T02:00:00Z",
+    "uploaded_at": "2026-05-10T02:00:00Z"
   }
 }
 ```
 
-**Notes:**
-- `is_duplicate: true` means this exact file was already uploaded (MD5 hash match). Still returns `200` — the CV is saved.
-- `extraction_error: "no_text_extracted"` means the PDF had no readable text (scanned/image PDF). CV is still stored.
-- `confidence_score`: 0–100. Below 50 = unreliable extraction.
+### GET `/cvs`
 
-**Errors:**
-| Code | `detail` | Cause |
-|------|----------|-------|
-| 400 | `Only PDF files are accepted` | Non-PDF file |
-| 413 | `File exceeds 5MB limit` | File too large |
-| 401 | `Not authenticated` | Missing/invalid token |
+Returns user CVs.
+
+### GET `/cvs/{cv_id}`
+
+`cv_id` is UUID.
 
 ---
 
-### 3.2 List CVs
-```
-GET /api/cvs
-Authorization: Bearer <token>
-```
-Returns all CVs in the system, newest first.
+## Screening sessions
 
-**Success `200`:** `{ "success": true, "data": [ /* array of CVOut */ ] }`
+### POST `/sessions`
 
----
+**V2 payload (recommended):**
 
-### 3.3 Get Single CV
-```
-GET /api/cvs/{cv_id}
-Authorization: Bearer <token>
-```
-**Errors:** `404 { "detail": "CV not found" }`
-
----
-
-## 4. Screening Sessions
-
-A session links a job offer + a set of CVs, then scores them.
-
-### 4.1 Create Session
-```
-POST /api/sessions
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-**Request body:**
 ```json
 {
-  "name": "Campagne Backend Mai 2024",
-  "job_offer_id": 1,
-  "cv_ids": [1, 2, 3, 4, 5],
+  "name": "Python shortlist",
+  "offer_id": "eec82cc5-0cb1-49f7-90db-827f4f8da9f4",
+  "cv_ids": [
+    "b6d7f7f3-6832-4ea6-92dd-0e51d0f2ff80",
+    "0d3e9e16-f147-48d6-84a3-fd3d53ed2c1d"
+  ],
   "weights": {
-    "skills": 0.35,
-    "experience": 0.25,
-    "education": 0.15,
-    "language": 0.15,
-    "location": 0.10
+    "skills_match": 0.30,
+    "experience_relevance": 0.22,
+    "achievements": 0.15,
+    "language_quality": 0.10,
+    "language_match": 0.10,
+    "education": 0.08,
+    "location": 0.05
   }
 }
 ```
-> ⚠️ Weights must sum to exactly **1.0** (±0.01 tolerance).
 
-**Success `200`:**
+**Legacy V1 compatibility:**
+
+- `job_offer_id` is accepted as alias for `offer_id`
+- `weights.skills`, `weights.experience`, `weights.language` are accepted and mapped to V2 keys
+
+Success (trimmed):
+
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
-    "name": "Campagne Backend Mai 2024",
+    "id": "9c846af8-2a2a-4a5f-a90a-a8d5ebf3f4ee",
+    "name": "Python shortlist",
     "status": "pending",
-    "job_offer_id": 1,
-    "total_cvs": 5,
+    "user_id": "0f6c1e2f-8cc1-4d33-a6ee-2f3df69f1fcb",
+    "offer_id": "eec82cc5-0cb1-49f7-90db-827f4f8da9f4",
+    "job_offer_id": "eec82cc5-0cb1-49f7-90db-827f4f8da9f4",
+    "total_cvs": 2,
     "processed_cvs": 0,
-    "weights_skills": 0.35,
-    "weights_experience": 0.25,
-    "weights_education": 0.15,
-    "weights_language": 0.15,
-    "weights_location": 0.10,
-    "created_at": "2024-01-15T10:10:00.000000",
+    "weights": {
+      "skills_match": 0.3,
+      "experience_relevance": 0.22,
+      "achievements": 0.15,
+      "language_quality": 0.1,
+      "language_match": 0.1,
+      "education": 0.08,
+      "location": 0.05
+    },
+    "weights_skills": 0.3,
+    "weights_experience": 0.22,
+    "weights_education": 0.08,
+    "weights_language": 0.1,
+    "weights_location": 0.05,
+    "created_at": "2026-05-10T02:00:00Z",
+    "completed_at": null,
     "scored_at": null
   }
 }
 ```
 
-**Errors:**
-| Code | `detail` | Cause |
-|------|----------|-------|
-| 400 | `Weights must sum to 1.0 (got X.X)` | Bad weights |
-| 400 | `Some CV IDs not found` | Invalid cv_ids |
-| 404 | `Job offer not found` | Invalid job_offer_id |
+### POST `/sessions/{session_id}/score`
+
+Triggers scoring asynchronously.
+
+### GET `/sessions`
+
+List sessions.
+
+### GET `/sessions/{session_id}`
+
+Get single session.
 
 ---
 
-### 4.2 Start Scoring (async)
-```
-POST /api/sessions/{session_id}/score
-Authorization: Bearer <token>
-```
-No body needed. Scoring runs in the **background**.
+## Results
 
-**Success `200`:**
+### GET `/sessions/{session_id}/results`
+
+If not completed:
+
 ```json
 {
   "success": true,
-  "data": { "message": "Scoring started", "session_id": 1 }
+  "data": {"status": "processing", "results": []}
 }
 ```
 
-**Status progression:** `pending` → `scoring` → `completed` | `failed`
+If completed (trimmed):
 
-**Poll pattern (frontend):**
-```js
-async function pollSession(sessionId, token, interval = 3000) {
-  return new Promise((resolve, reject) => {
-    const timer = setInterval(async () => {
-      const res = await fetch(`${BASE_URL}/api/sessions/${sessionId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const { data } = await res.json();
-      if (data.status === "completed") { clearInterval(timer); resolve(data); }
-      if (data.status === "failed")    { clearInterval(timer); reject(data); }
-    }, interval);
-  });
-}
-
-// Usage:
-await fetch(`${BASE_URL}/api/sessions/${id}/score`, { method: "POST", headers: authHeaders });
-const session = await pollSession(id, token);
-// Now fetch results
-```
-
-**Errors:** `409 { "detail": "Scoring already in progress" }`
-
----
-
-### 4.3 List Sessions
-```
-GET /api/sessions
-Authorization: Bearer <token>
-```
-Returns the authenticated user's sessions, newest first.
-
----
-
-### 4.4 Get Single Session
-```
-GET /api/sessions/{session_id}
-Authorization: Bearer <token>
-```
-Use this to poll `status` field.
-
-**`status` values:**
-- `pending` — created, not yet scored
-- `scoring` — currently running
-- `completed` — results ready
-- `failed` — error during scoring
-
----
-
-## 5. Results
-
-### 5.1 Get Ranked Results
-```
-GET /api/sessions/{session_id}/results
-Authorization: Bearer <token>
-```
-If session is not yet `completed`, returns:
-```json
-{ "success": true, "data": { "status": "scoring", "results": [] } }
-```
-
-**Success `200` (completed):**
 ```json
 {
   "success": true,
   "data": [
     {
       "rank": 1,
-      "cv_id": 3,
-      "candidate_name": "Amal Alaoui",
-      "candidate_email": "amal@email.ma",
-      "final_score": 0.8731,
-      "final_score_pct": 87.3,
-      "skills_score": 0.9200,
-      "experience_score": 0.8000,
-      "education_score": 1.0000,
-      "language_score": 1.0000,
-      "location_score": 1.0000,
-      "matched_skills": ["Python", "FastAPI", "PostgreSQL"],
+      "cv_id": "b6d7f7f3-6832-4ea6-92dd-0e51d0f2ff80",
+      "candidate_name": "John Doe",
+      "total_score": 0.86,
+      "final_score": 0.86,
+      "final_score_pct": 86.0,
+      "recommendation": "Strong Match",
+      "skills_score": 0.9,
+      "experience_score": 0.8,
+      "achievements_score": 0.7,
+      "language_quality_score": 0.8,
+      "language_match_score": 1.0,
+      "education_score": 0.8,
+      "location_score": 1.0,
+      "matched_skills": ["Python", "FastAPI"],
+      "missing_skills": [],
+      "critical_missing": [],
       "missing_critical": [],
-      "status": "pending",
+      "language_details": [],
+      "flags": [],
+      "missing_critical_count": 0,
+      "confidence_multiplier_applied": false,
+      "student_profile_detected": false,
+      "status": "scored",
       "threshold": "green"
     }
   ]
 }
 ```
 
-**Score threshold colors:**
-| `threshold` | `final_score` range | UI color |
-|-------------|---------------------|----------|
-| `green`     | ≥ 0.80              | 🟢 Green |
-| `orange`    | 0.50 – 0.79         | 🟡 Orange |
-| `red`       | < 0.50              | 🔴 Red |
+### GET `/sessions/{session_id}/export`
 
-All scores are **0.0–1.0** range. `final_score_pct` is `final_score × 100`.
+CSV export with V2 score columns.
 
 ---
 
-### 5.2 Export Results as CSV
-```
-GET /api/sessions/{session_id}/export
-Authorization: Bearer <token>
-```
-Returns a CSV file download. Browser-safe approach:
-```js
-const res = await fetch(`${BASE_URL}/api/sessions/${sessionId}/export`, {
-  headers: { "Authorization": `Bearer ${token}` }
-});
-const blob = await res.blob();
-const url  = URL.createObjectURL(blob);
-const a    = document.createElement("a");
-a.href     = url;
-a.download = `session_${sessionId}_results.csv`;
-a.click();
-```
+## Health
 
-**CSV columns:** `rank, name, email, phone, location, final_score_pct, skills_score, experience_score, education_score, language_score, location_score, matched_skills, missing_critical, status`
+### GET `/health`
 
----
-
-## 6. Health Check
-
-```
-GET /api/health
-```
-No auth required.
-
-**`200`:**
 ```json
-{ "success": true, "data": { "status": "ok", "version": "1.0.0" } }
+{"success": true, "data": {"status": "ok", "version": "1.0.0"}}
 ```
 
 ---
 
-## 7. Error Handling Reference
+## Error handling notes
 
-### Universal error shape
-All non-2xx responses use FastAPI's default:
-```json
-{ "detail": "Error message here" }
-```
+1. Missing token is typically returned as `403` by `HTTPBearer`.
+2. Invalid/expired token returns `401`.
 
-### Common HTTP codes
-| Code | Meaning |
-|------|---------|
-| 200  | OK |
-| 400  | Bad request (validation, business logic) |
-| 401  | Missing or expired token |
-| 403  | Forbidden (wrong user) |
-| 404  | Resource not found |
-| 409  | Conflict (e.g., scoring already running) |
-| 413  | File too large |
-| 422  | Pydantic validation error (wrong field types/names) |
-| 500  | Server error |
+Frontend should treat both as auth failure:
 
-### Frontend error handler
 ```js
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("recruteIA_token");
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-
-  if (res.status === 401) {
-    localStorage.removeItem("recruteIA_token");
-    window.location.href = "/login";
-    return;
-  }
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.detail || `HTTP ${res.status}`);
-  }
-  return data;
+if (response.status === 401 || response.status === 403) {
+  // force relogin
 }
 ```
-
----
-
-## 8. CORS
-
-The server allows `*` origins. No proxy needed in development.
-
----
-
-## 9. WordPress Integration Notes (Otman)
-
-Since the frontend runs on WordPress with custom JS:
-
-1. **Store the token in `localStorage`** (or a cookie with `HttpOnly=false` since you need JS access):
-   ```js
-   localStorage.setItem("recruteIA_token", response.data.access_token);
-   ```
-
-2. **Never set `Content-Type: multipart/form-data` manually** for file uploads — let the browser set the boundary automatically via `FormData`.
-
-3. **Polling** can be done with `setInterval` + a progress indicator (spinner/progress bar) while `status !== "completed"`.
-
-4. **CORS**: No special server config needed; `*` is already set.
-
-5. **Base URL**: Store it in one place:
-   ```js
-   const RECRUTE_IA_API = "https://yassirhakimi-recruiteia-api.hf.space/api";
-   ```
-
-6. **Authentication guard**: Before any API call, check the token:
-   ```js
-   if (!localStorage.getItem("recruteIA_token")) {
-     // redirect to login page
-   }
-   ```
-
----
-
-## 10. Complete Request/Response Examples
-
-### Full recruiter workflow (JS pseudocode)
-
-```js
-// 1. Register + Login
-const { data: { access_token, user } } = await apiFetch("/auth/login", {
-  method: "POST", body: JSON.stringify({ email, password })
-});
-localStorage.setItem("recruteIA_token", access_token);
-
-// 2. (Optional) Extract offer from JD text
-const { data: extractedOffer } = await apiFetch("/offers/extract", {
-  method: "POST", body: JSON.stringify({ text: rawJDText, lang: "fr" })
-});
-
-// 3. Create offer
-const { data: offer } = await apiFetch("/offers", {
-  method: "POST", body: JSON.stringify({
-    ...extractedOffer,          // from extract, or fill manually
-    title: "Développeur Backend",
-    description: rawJDText,
-    job_type: "CDI",
-  })
-});
-
-// 4. Upload CVs
-const cvIds = [];
-for (const file of selectedFiles) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const { data: cv } = await fetch(`${BASE}/cvs`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}` },
-    body: fd,
-  }).then(r => r.json());
-  cvIds.push(cv.id);
-}
-
-// 5. Create session + score
-const { data: session } = await apiFetch("/sessions", {
-  method: "POST", body: JSON.stringify({
-    name: "Campagne Backend Mai 2024",
-    job_offer_id: offer.id,
-    cv_ids: cvIds,
-    weights: { skills: 0.35, experience: 0.25, education: 0.15, language: 0.15, location: 0.10 }
-  })
-});
-
-await apiFetch(`/sessions/${session.id}/score`, { method: "POST" });
-
-// 6. Poll until completed
-const completed = await pollSession(session.id, token);
-
-// 7. Get ranked results
-const { data: results } = await apiFetch(`/sessions/${session.id}/results`);
-// results[0] = top candidate, results[0].threshold = "green"/"orange"/"red"
-```
-
----
-
-## 11. Quick Endpoint Reference
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET    | `/api/health` | ❌ | Health check |
-| POST   | `/api/auth/register` | ❌ | Register |
-| POST   | `/api/auth/login` | ❌ | Login → token |
-| POST   | `/api/offers` | ✅ | Create job offer |
-| GET    | `/api/offers` | ✅ | List my offers |
-| GET    | `/api/offers/{id}` | ✅ | Get offer |
-| PUT    | `/api/offers/{id}` | ✅ | Update offer |
-| DELETE | `/api/offers/{id}` | ✅ | Soft-delete offer |
-| POST   | `/api/offers/extract` | ✅ | AI extract from JD text |
-| POST   | `/api/cvs` | ✅ | Upload PDF CV |
-| GET    | `/api/cvs` | ✅ | List all CVs |
-| GET    | `/api/cvs/{id}` | ✅ | Get CV |
-| POST   | `/api/sessions` | ✅ | Create session |
-| POST   | `/api/sessions/{id}/score` | ✅ | Start scoring (async) |
-| GET    | `/api/sessions` | ✅ | List my sessions |
-| GET    | `/api/sessions/{id}` | ✅ | Get session + status |
-| GET    | `/api/sessions/{id}/results` | ✅ | Get ranked results |
-| GET    | `/api/sessions/{id}/export` | ✅ | Download CSV |

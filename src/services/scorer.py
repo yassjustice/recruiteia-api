@@ -1,18 +1,19 @@
 """
-CV Scoring Service
-Notebook-parity scoring with stable backend API outputs.
+V2 scoring service aligned with schema_updated.sql.
+Backward-compatible output fields are kept for existing clients.
 """
 from difflib import SequenceMatcher
 import re
 from typing import Any
 
-
-DEFAULT_WEIGHTS = {
-    "skills": 0.35,
-    "experience": 0.25,
-    "education": 0.15,
-    "language": 0.15,
-    "location": 0.10,
+DEFAULT_WEIGHTS_V2 = {
+    "skills_match": 0.30,
+    "experience_relevance": 0.22,
+    "achievements": 0.15,
+    "language_quality": 0.10,
+    "language_match": 0.10,
+    "education": 0.08,
+    "location": 0.05,
 }
 
 LEVEL_MAP = {
@@ -96,48 +97,68 @@ def _normalize_language_name(name: str) -> str:
 
 def _required_languages(job: dict) -> list[dict]:
     required = _ensure_list(job.get("required_languages"))
-    if required:
-        normalized = []
-        for entry in required:
-            if not isinstance(entry, dict):
-                continue
-            language = str(entry.get("language", "")).strip()
-            if not language:
-                continue
-            min_level = str(entry.get("min_level") or entry.get("level") or "").strip()
-            weight = entry.get("weight", 0)
-            try:
-                weight = float(weight)
-            except (TypeError, ValueError):
-                weight = 0.0
-            normalized.append({"language": language, "min_level": min_level, "weight": weight})
-        total = sum(item["weight"] for item in normalized)
-        if normalized and total <= 0:
-            equal = round(1.0 / len(normalized), 2)
-            return [{**item, "weight": equal} for item in normalized]
-        if normalized and total > 0:
-            return [{**item, "weight": item["weight"] / total} for item in normalized]
-        return []
-
-    legacy = _ensure_list(job.get("languages_required"))
-    if not legacy:
-        return []
     normalized = []
-    equal = 1.0 / len(legacy)
-    for entry in legacy:
+    for entry in required:
         if not isinstance(entry, dict):
             continue
         language = str(entry.get("language", "")).strip()
         if not language:
             continue
-        normalized.append(
-            {
-                "language": language,
-                "min_level": str(entry.get("level", "")).strip(),
-                "weight": equal,
-            }
-        )
-    return normalized
+        min_level = str(entry.get("min_level") or entry.get("level") or "").strip()
+        weight = entry.get("weight", 0)
+        try:
+            weight = float(weight)
+        except (TypeError, ValueError):
+            weight = 0.0
+        normalized.append({"language": language, "min_level": min_level, "weight": weight})
+
+    if not normalized:
+        legacy = _ensure_list(job.get("languages_required"))
+        if not legacy:
+            return []
+        equal = 1.0 / len(legacy)
+        for entry in legacy:
+            if isinstance(entry, dict) and entry.get("language"):
+                normalized.append(
+                    {
+                        "language": str(entry.get("language")).strip(),
+                        "min_level": str(entry.get("level", "")).strip(),
+                        "weight": equal,
+                    }
+                )
+
+    total = sum(item["weight"] for item in normalized)
+    if normalized and total <= 0:
+        equal = round(1.0 / len(normalized), 2)
+        return [{**item, "weight": equal} for item in normalized]
+    if normalized and total > 0:
+        return [{**item, "weight": item["weight"] / total} for item in normalized]
+    return []
+
+
+def _normalize_weights(weights: dict | None) -> dict:
+    incoming = weights or {}
+    mapped = {
+        "skills_match": incoming.get("skills_match", incoming.get("skills", DEFAULT_WEIGHTS_V2["skills_match"])),
+        "experience_relevance": incoming.get(
+            "experience_relevance", incoming.get("experience", DEFAULT_WEIGHTS_V2["experience_relevance"])
+        ),
+        "achievements": incoming.get("achievements", DEFAULT_WEIGHTS_V2["achievements"]),
+        "language_quality": incoming.get("language_quality", DEFAULT_WEIGHTS_V2["language_quality"]),
+        "language_match": incoming.get("language_match", incoming.get("language", DEFAULT_WEIGHTS_V2["language_match"])),
+        "education": incoming.get("education", DEFAULT_WEIGHTS_V2["education"]),
+        "location": incoming.get("location", DEFAULT_WEIGHTS_V2["location"]),
+    }
+    normalized = {}
+    for key, value in mapped.items():
+        try:
+            normalized[key] = float(value)
+        except (TypeError, ValueError):
+            normalized[key] = DEFAULT_WEIGHTS_V2[key]
+    total = sum(normalized.values())
+    if total <= 0:
+        return DEFAULT_WEIGHTS_V2.copy()
+    return {k: v / total for k, v in normalized.items()}
 
 
 def _edu_rank(level: str) -> int:
@@ -160,7 +181,7 @@ def _edu_rank(level: str) -> int:
 def _achievements_score(candidate: dict) -> float:
     qa = candidate.get("quantified_achievements")
     if isinstance(qa, dict):
-        count = int(qa.get("count") or 0)
+        count = int(qa.get("count") or len(_ensure_list(qa.get("examples"))))
     elif isinstance(qa, list):
         count = len(qa)
     else:
@@ -195,7 +216,7 @@ def score_skills(candidate: dict, job: dict) -> dict:
     backed = [str(s).strip() for s in _ensure_list(candidate.get("skills_in_experience")) if str(s).strip()]
 
     if not required:
-        return {"score": 0.5, "matched": [], "missing_skills": [], "missing_critical": []}
+        return {"score": 0.5, "matched": [], "missing_skills": [], "critical_missing": []}
 
     matched = []
     missing = []
@@ -218,23 +239,20 @@ def score_skills(candidate: dict, job: dict) -> dict:
         else:
             missing.append(job_skill)
 
-    missing_critical = [crit for crit in critical if not any(_match(c_skill, crit) for c_skill in cand_skills)]
+    critical_missing = [crit for crit in critical if not any(_match(c_skill, crit) for c_skill in cand_skills)]
     score = earned / total_weight if total_weight else 0.0
     return {
         "score": round(min(score, 1.0), 4),
         "matched": matched,
         "missing_skills": missing,
-        "missing_critical": missing_critical,
+        "critical_missing": critical_missing,
     }
 
 
-def score_experience(candidate: dict, job: dict) -> float:
+def score_experience_relevance(candidate: dict, job: dict) -> tuple[float, str]:
     candidate_years = float(candidate.get("experience_years") or 0)
     required_years = float(job.get("experience_required_years") or 0)
-
-    years_score = 1.0
-    if required_years > 0:
-        years_score = min(1.0, candidate_years / required_years) if candidate_years > 0 else 0.10
+    years_score = 1.0 if required_years <= 0 else (min(1.0, candidate_years / required_years) if candidate_years > 0 else 0.10)
 
     experience_text = " ".join(
         filter(
@@ -248,20 +266,26 @@ def score_experience(candidate: dict, job: dict) -> float:
     ).lower()
     required_skills = [str(s).lower() for s in _ensure_list(job.get("required_skills"))]
     if required_skills and experience_text:
-        matched = sum(1 for skill in required_skills if skill and (skill in experience_text or any(_match(skill, token) for token in experience_text.split())))
+        matched = sum(
+            1
+            for skill in required_skills
+            if skill and (skill in experience_text or any(_match(skill, token) for token in experience_text.split()))
+        )
         relevance_score = matched / len(required_skills)
     else:
         relevance_score = 0.20 if not experience_text else 0.50
 
-    achievements_score = _achievements_score(candidate)
-    combined = (0.55 * years_score) + (0.30 * relevance_score) + (0.15 * achievements_score)
-    return round(max(0.0, min(1.0, combined)), 4)
+    combined = (0.65 * years_score) + (0.35 * relevance_score)
+    reason = (
+        f"{round(candidate_years, 1)} years vs required {round(required_years, 1)} years; "
+        f"relevant skills coverage {round(relevance_score * 100, 1)}%"
+    )
+    return round(max(0.0, min(1.0, combined)), 4), reason
 
 
 def score_education(candidate: dict, job: dict) -> float:
     required_label = (job.get("min_education") or job.get("education_required") or "").strip()
     candidate_label = (candidate.get("education_level") or "").strip()
-
     req_rank = _edu_rank(required_label)
     cand_rank = _edu_rank(candidate_label)
 
@@ -276,10 +300,10 @@ def score_education(candidate: dict, job: dict) -> float:
     return 0.3
 
 
-def score_language(candidate: dict, job: dict) -> float:
+def score_language_match(candidate: dict, job: dict) -> tuple[float, list[dict]]:
     required = _required_languages(job)
     if not required:
-        return 1.0
+        return 1.0, []
 
     spoken_levels = {}
     for entry in _ensure_list(candidate.get("languages_spoken")):
@@ -298,6 +322,7 @@ def score_language(candidate: dict, job: dict) -> float:
             item["weight"] = 1.0
 
     earned = 0.0
+    details = []
     for req in required:
         req_name = _normalize_language_name(str(req.get("language", "")))
         req_min_level = _normalize_language_level(str(req.get("min_level", "")))
@@ -305,13 +330,48 @@ def score_language(candidate: dict, job: dict) -> float:
         candidate_level = spoken_levels.get(req_name, 0)
 
         if req_min_level <= 0:
-            earned += weight if candidate_level > 0 else 0.6 * weight
+            component = weight if candidate_level > 0 else 0.6 * weight
         elif candidate_level >= req_min_level:
-            earned += weight
+            component = weight
         elif candidate_level > 0:
-            earned += weight * (candidate_level / req_min_level)
+            component = weight * (candidate_level / req_min_level)
+        else:
+            component = 0.0
 
-    return round(max(0.0, min(1.0, earned / total_weight)), 4)
+        earned += component
+        details.append(
+            {
+                "language": req.get("language"),
+                "required_level": req.get("min_level", ""),
+                "candidate_level_score": candidate_level,
+                "required_level_score": req_min_level,
+                "match": component >= (0.8 * weight if weight > 0 else 0),
+            }
+        )
+
+    return round(max(0.0, min(1.0, earned / total_weight)), 4), details
+
+
+def score_language_quality(candidate: dict) -> float:
+    action = candidate.get("action_verb_scores") or {}
+    buzz = candidate.get("buzzword_analysis") or {}
+
+    if isinstance(action, dict) and "verb_score" in action:
+        try:
+            base = float(action.get("verb_score", 0)) / 100.0
+        except (TypeError, ValueError):
+            base = 0.5
+    else:
+        count = 0
+        if isinstance(action, dict):
+            count = int(action.get("count", action.get("strong_count", 0)) or 0)
+        base = min(1.0, 0.45 + (0.06 * count))
+
+    buzz_count = 0
+    if isinstance(buzz, dict):
+        buzz_count = int(buzz.get("count", 0) or 0)
+    penalty = min(0.20, buzz_count * 0.03)
+    return round(max(0.0, min(1.0, base - penalty)), 4)
 
 
 def score_location(candidate: dict, job: dict) -> float:
@@ -320,7 +380,6 @@ def score_location(candidate: dict, job: dict) -> float:
 
     candidate_loc = (candidate.get("location") or candidate.get("city") or "").strip().lower()
     job_loc = (job.get("location") or "").strip().lower()
-
     if not job_loc or job_loc in {"remote", "télétravail", "distanciel"}:
         return 1.0
     if not candidate_loc:
@@ -339,50 +398,70 @@ def get_recommendation(score: float) -> str:
 
 
 def score_candidate(candidate: dict, job: dict, weights: dict) -> dict:
-    w = {**DEFAULT_WEIGHTS, **(weights or {})}
-
+    w = _normalize_weights(weights)
     skills_result = score_skills(candidate, job)
-    s_skills = skills_result["score"]
-    s_exp = score_experience(candidate, job)
-    s_edu = score_education(candidate, job)
-    s_lang = score_language(candidate, job)
-    s_loc = score_location(candidate, job)
+    experience_score, experience_reason = score_experience_relevance(candidate, job)
+    achievements_score = _achievements_score(candidate)
+    language_quality_score = score_language_quality(candidate)
+    language_match_score, language_details = score_language_match(candidate, job)
+    education_score = score_education(candidate, job)
+    location_score = score_location(candidate, job)
 
-    final = (
-        (w["skills"] * s_skills)
-        + (w["experience"] * s_exp)
-        + (w["education"] * s_edu)
-        + (w["language"] * s_lang)
-        + (w["location"] * s_loc)
+    total = (
+        (w["skills_match"] * skills_result["score"])
+        + (w["experience_relevance"] * experience_score)
+        + (w["achievements"] * achievements_score)
+        + (w["language_quality"] * language_quality_score)
+        + (w["language_match"] * language_match_score)
+        + (w["education"] * education_score)
+        + (w["location"] * location_score)
     )
 
-    n_missing_critical = len(skills_result["missing_critical"])
-    if n_missing_critical > 0:
-        final *= 0.90 ** n_missing_critical
+    critical_missing = skills_result["critical_missing"]
+    if critical_missing:
+        total *= 0.90 ** len(critical_missing)
 
+    confidence_multiplier_applied = False
     if _confidence_value(candidate) < 60.0:
-        final *= 0.85
+        total *= 0.85
+        confidence_multiplier_applied = True
 
-    final = round(max(0.0, min(1.0, final)), 4)
+    total = round(max(0.0, min(1.0, total)), 4)
+    flags = candidate.get("flags") if isinstance(candidate.get("flags"), list) else []
+    student_profile_detected = candidate.get("experience_years", 0) in (0, 0.0) and bool(candidate.get("projects"))
 
-    return {
+    row = {
         "cv_id": candidate.get("cv_id"),
-        "final_score": final,
-        "skills_score": round(s_skills, 4),
-        "experience_score": round(s_exp, 4),
-        "education_score": round(s_edu, 4),
-        "language_score": round(s_lang, 4),
-        "location_score": round(s_loc, 4),
+        "total_score": total,
+        "final_score": total,  # backward compatibility
+        "skills_score": round(skills_result["score"], 4),
+        "experience_score": round(experience_score, 4),
+        "achievements_score": round(achievements_score, 4),
+        "language_quality_score": round(language_quality_score, 4),
+        "language_match_score": round(language_match_score, 4),
+        "education_score": round(education_score, 4),
+        "location_score": round(location_score, 4),
         "matched_skills": skills_result["matched"],
         "missing_skills": skills_result["missing_skills"],
-        "missing_critical": skills_result["missing_critical"],
-        "recommendation": get_recommendation(final),
+        "critical_missing": critical_missing,
+        "missing_critical": critical_missing,  # backward compatibility
+        "language_details": language_details,
+        "experience_relevance_reason": experience_reason,
+        "flags": flags,
+        "confidence_multiplier_applied": confidence_multiplier_applied,
+        "student_profile_detected": student_profile_detected,
+        "missing_critical_count": len(critical_missing),
+        "semantic_score": None,
+        "recommendation": get_recommendation(total),
+        # backward compatibility field for old clients
+        "language_score": round((language_quality_score + language_match_score) / 2.0, 4),
     }
+    return row
 
 
 def rank_candidates(candidates: list, job: dict, weights: dict) -> list:
     scored = [score_candidate(candidate, job, weights) for candidate in candidates]
-    scored.sort(key=lambda row: row["final_score"], reverse=True)
+    scored.sort(key=lambda row: row["total_score"], reverse=True)
     for idx, row in enumerate(scored, start=1):
         row["rank"] = idx
     return scored
