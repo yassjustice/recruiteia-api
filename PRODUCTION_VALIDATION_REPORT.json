@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-05-09T15:24:18.355131",
+  "timestamp": "2026-05-10T12:41:49.037849",
   "base_url": "https://yassirhakimi-recruiteia-api.hf.space/api",
   "suites": [
     {
@@ -23,7 +23,7 @@
         },
         {
           "status": "pass",
-          "message": "User created: ID 1"
+          "message": "User created: ID 0da4a409-b36b-4515-ae8c-3b86efa0d60e"
         },
         {
           "status": "pass",
@@ -49,46 +49,14 @@
     },
     {
       "suite": "JD Extraction",
-      "total": 11,
-      "passed": 11,
-      "failed": 0,
-      "success_rate": 100.0,
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "success_rate": 66.7,
       "results": [
         {
-          "status": "pass",
-          "message": "POST /offers/extract (text)"
-        },
-        {
-          "status": "pass",
-          "message": "Response success=true"
-        },
-        {
-          "status": "pass",
-          "message": "Job title contains 'Engineer': Software Engineer"
-        },
-        {
-          "status": "pass",
-          "message": "Python in required_skills: ['Python', 'SQL', 'PostgreSQL', 'FastAPI', 'Django', 'Docker', 'AWS']"
-        },
-        {
-          "status": "pass",
-          "message": "Critical skills identified: ['Python', 'SQL', 'PostgreSQL']"
-        },
-        {
-          "status": "pass",
-          "message": "Experience years = 3: 3"
-        },
-        {
-          "status": "pass",
-          "message": "Location extracted: Casablanca, Morocco or Remote"
-        },
-        {
-          "status": "pass",
-          "message": "POST /offers (create)"
-        },
-        {
-          "status": "pass",
-          "message": "Job offer created: ID 1"
+          "status": "fail",
+          "message": "POST /offers/extract (text)\nExpected: 200, Got: 500\nResponse: Internal Server Error"
         },
         {
           "status": "pass",
@@ -96,7 +64,7 @@
         },
         {
           "status": "pass",
-          "message": "Retrieved 1 offer(s)"
+          "message": "Retrieved 0 offer(s)"
         }
       ]
     },
@@ -119,18 +87,14 @@
     },
     {
       "suite": "Scoring & Sessions",
-      "total": 2,
-      "passed": 1,
+      "total": 1,
+      "passed": 0,
       "failed": 1,
-      "success_rate": 50.0,
+      "success_rate": 0.0,
       "results": [
         {
-          "status": "pass",
-          "message": "Job offer found: ID 1"
-        },
-        {
           "status": "fail",
-          "message": "No CVs available for scoring"
+          "message": "No job offers available for scoring"
         }
       ]
     },
@@ -168,8 +132,8 @@
       ]
     }
   ],
-  "total_tests": 30,
-  "total_passed": 28,
-  "total_failed": 2,
-  "success_rate": 93.3
+  "total_tests": 21,
+  "total_passed": 18,
+  "total_failed": 3,
+  "success_rate": 85.7
 }
