@@ -66,3 +66,8 @@ The backend still returns legacy aliases so frontend migration can be progressiv
 ## Contract source of truth
 
 - `docs/API.md`
+
+## Scoring behavior note (2026-05-10)
+
+- `experience_relevance` implementation moved to Groq notebook-parity logic with server-side cache.
+- **No frontend contract change:** keep using `total_score` (0..1) or `final_score_pct` (0..100) for UI.

@@ -13,6 +13,13 @@
 | Result score | `final_score` | `total_score` (`final_score` still returned for compatibility) |
 | Critical missing skills | `missing_critical` | `critical_missing` (`missing_critical` still returned for compatibility) |
 
+## Changelog
+
+- **2026-05-10 (scoring update):**
+  - `experience_relevance` is computed via Groq (notebook-parity behavior) with md5 cache on experience+JD summary.
+  - API response contract is unchanged: scores remain `0..1` (`total_score`, `final_score`) and `final_score_pct` remains `0..100`.
+  - If Groq is unavailable, API falls back to deterministic heuristic relevance scoring.
+
 ---
 
 ## Auth
@@ -334,6 +341,20 @@ If completed (trimmed):
 ### GET `/sessions/{session_id}/export`
 
 CSV export with V2 score columns.
+
+## Scoring methodology (current production)
+
+1. **Scale contract (stable):**
+   - `total_score`, `final_score`, component scores are normalized floats in `0..1`.
+   - `final_score_pct` is provided for UI display in `0..100`.
+
+2. **Experience relevance:**
+   - Groq rates relevance on `0..100` from candidate experience/projects/profile against JD summary/text.
+   - API normalizes that value to `0..1` before weighting.
+   - Results are cached using md5(`experience text + JD summary/text`) to avoid redundant Groq calls.
+
+3. **Resilience behavior:**
+   - If Groq fails or is unavailable, API uses deterministic heuristic fallback for `experience_relevance`.
 
 ---
 

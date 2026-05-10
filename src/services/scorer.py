@@ -2,9 +2,13 @@
 V2 scoring service aligned with schema_updated.sql.
 Backward-compatible output fields are kept for existing clients.
 """
+import hashlib
+import json
+import os
 from difflib import SequenceMatcher
 import re
 from typing import Any
+from groq import Groq
 
 DEFAULT_WEIGHTS_V2 = {
     "skills_match": 0.30,
@@ -15,6 +19,12 @@ DEFAULT_WEIGHTS_V2 = {
     "education": 0.08,
     "location": 0.05,
 }
+
+GROQ_MODEL = os.environ.get("SCORER_GROQ_MODEL", "llama-3.3-70b-versatile")
+_groq_client: Groq | None = None
+# Notebook-parity cache key: md5(experience text + JD summary/raw text)
+_experience_cache: dict[str, tuple[float, str]] = {}
+_EXPERIENCE_CACHE_MAX_SIZE = 5000
 
 LEVEL_MAP = {
     "native": 100,
@@ -93,6 +103,16 @@ def _normalize_language_level(level: str) -> int:
 def _normalize_language_name(name: str) -> str:
     key = (name or "").lower().strip()
     return LANGUAGE_NAME_MAP.get(key, key)
+
+
+def _get_groq_client() -> Groq:
+    global _groq_client
+    if _groq_client is None:
+        api_key = os.environ.get("GROQ_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY is not configured")
+        _groq_client = Groq(api_key=api_key)
+    return _groq_client
 
 
 def _required_languages(job: dict) -> list[dict]:
@@ -249,7 +269,7 @@ def score_skills(candidate: dict, job: dict) -> dict:
     }
 
 
-def score_experience_relevance(candidate: dict, job: dict) -> tuple[float, str]:
+def _score_experience_relevance_rule_based(candidate: dict, job: dict) -> tuple[float, str]:
     candidate_years = float(candidate.get("experience_years") or 0)
     required_years = float(job.get("experience_required_years") or 0)
     years_score = 1.0 if required_years <= 0 else (min(1.0, candidate_years / required_years) if candidate_years > 0 else 0.10)
@@ -281,6 +301,75 @@ def score_experience_relevance(candidate: dict, job: dict) -> tuple[float, str]:
         f"relevant skills coverage {round(relevance_score * 100, 1)}%"
     )
     return round(max(0.0, min(1.0, combined)), 4), reason
+
+
+def score_experience_relevance(candidate: dict, job: dict) -> tuple[float, str]:
+    """
+    Notebook-parity behavior:
+    - Ask Groq for 0-100 experience relevance
+    - Cache by md5(experience/projects/profile + JD summary/raw_text)
+    - Normalize to 0-1 for API scoring contract
+    """
+    experience_text = " ".join(
+        filter(
+            None,
+            [
+                _textify(candidate.get("experience")),
+                _textify(candidate.get("projects")),
+                _textify(candidate.get("profile")),
+            ],
+        )
+    ).strip()
+    if not experience_text:
+        return 0.20, "No experience/projects/profile text found; baseline relevance 20.0%"
+
+    jd_summary = _textify(job.get("description_summary")).strip()
+    if not jd_summary:
+        jd_summary = _textify(job.get("raw_text")).strip()
+    if not jd_summary:
+        return _score_experience_relevance_rule_based(candidate, job)
+
+    raw_key = f"{experience_text[:3000]}||{jd_summary[:1500]}"
+    cache_key = hashlib.md5(raw_key.encode("utf-8")).hexdigest()
+    cached = _experience_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    prompt = f"""You are an ATS relevance scorer.
+Rate from 0 to 100 how relevant the candidate experience/projects are to the job description.
+
+JOB DESCRIPTION SUMMARY:
+{jd_summary[:1500]}
+
+CANDIDATE EXPERIENCE / PROJECTS:
+{experience_text[:2000]}
+
+Reply with ONLY valid JSON in this exact format (no markdown, no extra text):
+{{"score": <integer 0-100>, "reason": "<one concise sentence>"}}"""
+
+    try:
+        response = _get_groq_client().chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=120,
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
+        parsed = json.loads(raw)
+        score_int = int(parsed["score"])
+        score_int = max(0, min(100, score_int))
+        score = round(score_int / 100.0, 4)
+        reason = str(parsed.get("reason") or "").strip() or f"Groq relevance score {score_int}/100"
+    except Exception:
+        score, fallback_reason = _score_experience_relevance_rule_based(candidate, job)
+        reason = f"Groq unavailable; heuristic fallback. {fallback_reason}"
+
+    result = (score, reason)
+    if len(_experience_cache) >= _EXPERIENCE_CACHE_MAX_SIZE:
+        _experience_cache.clear()
+    _experience_cache[cache_key] = result
+    return result
 
 
 def score_education(candidate: dict, job: dict) -> float:
