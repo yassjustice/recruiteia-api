@@ -19,5 +19,10 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan hf-sync
+          git add -A
+          git commit -m "Sync to HF Space"
           git remote add hf https://yassirhakimi:$HF_TOKEN@huggingface.co/spaces/yassirhakimi/recruiteia-api
-          git push hf main --force
+          git push hf hf-sync:main --force
