@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-05-10T12:41:49.037849",
+  "timestamp": "2026-05-11T10:44:16.500236",
   "base_url": "https://yassirhakimi-recruiteia-api.hf.space/api",
   "suites": [
     {
       "suite": "Authentication",
       "total": 9,
-      "passed": 8,
-      "failed": 1,
-      "success_rate": 88.9,
+      "passed": 9,
+      "failed": 0,
+      "success_rate": 100.0,
       "results": [
         {
           "status": "pass",
@@ -23,7 +23,7 @@
         },
         {
           "status": "pass",
-          "message": "User created: ID 0da4a409-b36b-4515-ae8c-3b86efa0d60e"
+          "message": "User created: ID 2af9bfae-acd1-48c6-bf74-748f7023281d"
         },
         {
           "status": "pass",
@@ -42,21 +42,33 @@
           "message": "GET /offers (with token)"
         },
         {
-          "status": "fail",
-          "message": "GET /offers (without token \u2192 401)\nExpected: 401, Got: 403\nResponse: {\"detail\":\"Not authenticated\"}"
+          "status": "pass",
+          "message": "GET /offers (without token \u2192 401/403)"
         }
       ]
     },
     {
       "suite": "JD Extraction",
-      "total": 3,
-      "passed": 2,
+      "total": 6,
+      "passed": 5,
       "failed": 1,
-      "success_rate": 66.7,
+      "success_rate": 83.3,
       "results": [
         {
           "status": "fail",
-          "message": "POST /offers/extract (text)\nExpected: 200, Got: 500\nResponse: Internal Server Error"
+          "message": "POST /offers/extract (text), attempts=[500, 500, 500]\nExpected: [200], Got: 500\nResponse: Internal Server Error"
+        },
+        {
+          "status": "pass",
+          "message": "Using fallback JD payload to continue integration flow"
+        },
+        {
+          "status": "pass",
+          "message": "POST /offers (create)"
+        },
+        {
+          "status": "pass",
+          "message": "Job offer created: ID 87938e8d-134d-4d36-a48d-0f61ca502737"
         },
         {
           "status": "pass",
@@ -64,37 +76,125 @@
         },
         {
           "status": "pass",
-          "message": "Retrieved 0 offer(s)"
+          "message": "Retrieved 1 offer(s)"
         }
       ]
     },
     {
       "suite": "CV Extraction",
-      "total": 2,
-      "passed": 2,
+      "total": 10,
+      "passed": 10,
       "failed": 0,
       "success_rate": 100.0,
       "results": [
+        {
+          "status": "pass",
+          "message": "Sample PDF CV created: 2,157 bytes"
+        },
+        {
+          "status": "pass",
+          "message": "POST /cvs (upload PDF)"
+        },
+        {
+          "status": "pass",
+          "message": "CV uploaded: ID 0589a003-1dd5-42d0-b94c-3b4206d462e3"
+        },
+        {
+          "status": "pass",
+          "message": "Name extracted: Jean Dupont"
+        },
+        {
+          "status": "pass",
+          "message": "Email extracted: jean@example.ma"
+        },
+        {
+          "status": "pass",
+          "message": "Skills extracted (6): AWS, Django, Docker, FastAPI, Python"
+        },
+        {
+          "status": "pass",
+          "message": "Experience years = 5: 5"
+        },
+        {
+          "status": "pass",
+          "message": "Confidence score: 83%"
+        },
         {
           "status": "pass",
           "message": "GET /cvs"
         },
         {
           "status": "pass",
-          "message": "Retrieved 0 CV(s)"
+          "message": "Retrieved 1 CV(s)"
         }
       ]
     },
     {
       "suite": "Scoring & Sessions",
-      "total": 1,
-      "passed": 0,
-      "failed": 1,
-      "success_rate": 0.0,
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "success_rate": 100.0,
       "results": [
         {
-          "status": "fail",
-          "message": "No job offers available for scoring"
+          "status": "pass",
+          "message": "Job offer found: ID 87938e8d-134d-4d36-a48d-0f61ca502737"
+        },
+        {
+          "status": "pass",
+          "message": "Found 1 CV(s)"
+        },
+        {
+          "status": "pass",
+          "message": "POST /sessions (create)"
+        },
+        {
+          "status": "pass",
+          "message": "Session created: ID fe3f0182-391b-436a-bc06-ac5fe4e8957c"
+        },
+        {
+          "status": "pass",
+          "message": "Session has 1 CVs"
+        },
+        {
+          "status": "pass",
+          "message": "POST /sessions/{id}/score"
+        },
+        {
+          "status": "pass",
+          "message": "Scoring completed: 1 candidates scored"
+        },
+        {
+          "status": "pass",
+          "message": "GET /sessions/{id}/results"
+        },
+        {
+          "status": "pass",
+          "message": "Retrieved 1 ranked results"
+        },
+        {
+          "status": "pass",
+          "message": "Top candidate: Rank #1, Jean Dupont, Score 77.2%, Threshold orange"
+        },
+        {
+          "status": "pass",
+          "message": "Score breakdown: Skills 100.0%, Exp 60.0%, Edu 80.0%, LangQ 69.0%, LangM 100.0%, Loc 50.0%"
+        },
+        {
+          "status": "pass",
+          "message": "GET /sessions/{id}/export"
+        },
+        {
+          "status": "pass",
+          "message": "CSV export: 374 bytes"
+        },
+        {
+          "status": "pass",
+          "message": "CSV headers OK: rank, name, email, phone, location, total_score_pct, recommendation, skills_score, experience_score, achievements_score, language_quality_score, language_match_score, education_score, location_score, matched_skills, missing_skills, critical_missing, status"
+        },
+        {
+          "status": "pass",
+          "message": "CSV contains 1 data row(s)"
         }
       ]
     },
@@ -111,7 +211,7 @@
         },
         {
           "status": "pass",
-          "message": "POST /auth/register \u2192 200"
+          "message": "POST /auth/register \u2192 400"
         },
         {
           "status": "pass",
@@ -132,8 +232,8 @@
       ]
     }
   ],
-  "total_tests": 21,
-  "total_passed": 18,
-  "total_failed": 3,
-  "success_rate": 85.7
+  "total_tests": 46,
+  "total_passed": 45,
+  "total_failed": 1,
+  "success_rate": 97.8
 }

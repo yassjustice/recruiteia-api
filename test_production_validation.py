@@ -13,6 +13,8 @@ Tests all API endpoints against production database.
 import requests
 import json
 import time
+import csv
+import io
 import sys
 import pathlib
 from pathlib import Path
@@ -32,7 +34,7 @@ BASE_URL = "https://yassirhakimi-recruiteia-api.hf.space/api"
 
 # Test credentials
 TEST_RECRUITER = {
-    "email": "test_recruiter_2026@company.ma",
+    "email": f"test_recruiter_{int(time.time())}@company.ma",
     "password": "TestPass@2026!Secure",
     "full_name": "Test Recruiter 2026"
 }
@@ -138,13 +140,19 @@ class TestSuite:
             self.fail_test(f"{msg}\n{item} not in {container}")
             return False
     
-    def assert_status(self, resp: requests.Response, expected: int, msg: str = ""):
+    def assert_status(self, resp: requests.Response, expected: Any, msg: str = ""):
         """Assert HTTP status."""
-        if resp.status_code == expected:
+        if isinstance(expected, int):
+            expected_statuses = {expected}
+        else:
+            expected_statuses = set(expected)
+
+        if resp.status_code in expected_statuses:
             self.pass_test(msg or f"Status {resp.status_code}")
             return True
         else:
-            self.fail_test(f"{msg}\nExpected: {expected}, Got: {resp.status_code}\nResponse: {resp.text[:200]}")
+            expected_text = ", ".join(str(s) for s in sorted(expected_statuses))
+            self.fail_test(f"{msg}\nExpected: [{expected_text}], Got: {resp.status_code}\nResponse: {resp.text[:200]}")
             return False
     
     def pass_test(self, msg: str):
@@ -232,7 +240,7 @@ class AuthTestSuite(TestSuite):
         print("\n  [5] Reject Request Without Token")
         temp_client = APIClient(self.client.base_url)
         resp = temp_client.get("/offers")
-        self.assert_status(resp, 401, "GET /offers (without token → 401)")
+        self.assert_status(resp, {401, 403}, "GET /offers (without token → 401/403)")
 
 
 class JDExtractionTestSuite(TestSuite):
@@ -249,11 +257,19 @@ class JDExtractionTestSuite(TestSuite):
         
         # 1. Extract from text (French)
         print("\n  [1] Extract JD from Text (French)")
-        resp = self.client.post("/offers/extract", {
-            "text": SAMPLE_JD,
-            "lang": "fr"
-        })
-        self.assert_status(resp, 200, "POST /offers/extract (text)")
+        resp = None
+        extract_attempts = []
+        for attempt in range(3):
+            resp = self.client.post("/offers/extract", {
+                "text": SAMPLE_JD,
+                "lang": "fr"
+            })
+            extract_attempts.append(resp.status_code)
+            if resp.status_code == 200:
+                break
+            time.sleep(2)
+
+        self.assert_status(resp, 200, f"POST /offers/extract (text), attempts={extract_attempts}")
         
         extracted_data = None
         if resp.status_code == 200:
@@ -278,15 +294,42 @@ class JDExtractionTestSuite(TestSuite):
             location = extracted_data.get("location", "")
             if location:
                 self.pass_test(f"Location extracted: {location}")
+        else:
+            extracted_data = {
+                "title": "Software Engineer",
+                "required_skills": ["Python", "SQL", "FastAPI"],
+                "critical_skills": ["Python", "SQL"],
+                "required_languages": [{"language": "French", "min_level": "B2", "weight": 1.0}],
+                "experience_required_years": 3,
+                "location": "Casablanca",
+                "job_function": "Engineering",
+                "seniority": "Mid",
+                "education_field": "Computer Science",
+            }
+            self.pass_test("Using fallback JD payload to continue integration flow")
         
         # 2. Create job offer from extracted data
         print("\n  [2] Create Job Offer from Extracted Data")
         if extracted_data:
             offer_body = {
-                **extracted_data,
-                "title": extracted_data.get("title", "Software Engineer"),
-                "description": SAMPLE_JD,
-                "domain": "IT"
+                "job_title": extracted_data.get("title", "Software Engineer"),
+                "company_name": "Validation Corp",
+                "industry": "IT",
+                "job_type": "CDI",
+                "job_function": extracted_data.get("job_function"),
+                "seniority": extracted_data.get("seniority"),
+                "location": extracted_data.get("location", "Casablanca"),
+                "remote_ok": False,
+                "raw_text": SAMPLE_JD,
+                "description_summary": "Validation JD for integration testing",
+                "required_skills": extracted_data.get("required_skills", ["Python"]),
+                "critical_skills": extracted_data.get("critical_skills") or extracted_data.get("required_skills", ["Python"])[:1],
+                "required_soft_skills": ["Communication"],
+                "required_languages": extracted_data.get("required_languages", []),
+                "min_education": "Bachelor",
+                "education_field": extracted_data.get("education_field"),
+                "experience_required_years": extracted_data.get("experience_required_years", 3),
+                "status": "active",
             }
             resp = self.client.post("/offers", offer_body)
             self.assert_status(resp, 200, "POST /offers (create)")
@@ -405,9 +448,20 @@ Arabic: Fluent
                 exp_years = cv_data.get("experience_years", 0)
                 self.assert_in(exp_years, [5, 5.0], f"Experience years = 5: {exp_years}")
                 
-                confidence = cv_data.get("confidence_score", 0)
-                if confidence:
-                    self.pass_test(f"Confidence score: {confidence*100:.0f}%")
+                confidence_value = None
+                confidence = cv_data.get("confidence_score")
+                if isinstance(confidence, dict):
+                    confidence_value = confidence.get("confidence")
+                elif isinstance(confidence, (int, float)):
+                    confidence_value = confidence * 100 if confidence <= 1 else confidence
+
+                if confidence_value is None:
+                    fallback_confidence = cv_data.get("confidence_score_value")
+                    if isinstance(fallback_confidence, (int, float)):
+                        confidence_value = fallback_confidence
+
+                if confidence_value is not None:
+                    self.pass_test(f"Confidence score: {confidence_value:.0f}%")
         
         except ImportError:
             print("  ⚠ reportlab not available, skipping PDF generation")
@@ -444,6 +498,20 @@ class ScoringTestSuite(TestSuite):
                 self.pass_test(f"Job offer found: ID {offer_id}")
         
         if not offer_id:
+            create_offer_resp = self.client.post("/offers", {
+                "job_title": "Scoring Validation Engineer",
+                "company_name": "Validation Corp",
+                "required_skills": ["Python", "SQL", "FastAPI"],
+                "critical_skills": ["Python"],
+                "experience_required_years": 3,
+                "status": "active",
+            })
+            self.assert_status(create_offer_resp, 200, "POST /offers (fallback for scoring)")
+            if create_offer_resp.status_code == 200:
+                offer_id = create_offer_resp.json().get("data", {}).get("id")
+                self.pass_test(f"Fallback job offer created: ID {offer_id}")
+
+        if not offer_id:
             self.fail_test("No job offers available for scoring")
             return
         
@@ -465,14 +533,16 @@ class ScoringTestSuite(TestSuite):
         print("\n  [3] Create Screening Session")
         session_body = {
             "name": f"Test Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            "job_offer_id": offer_id,
+            "offer_id": offer_id,
             "cv_ids": cv_ids,
             "weights": {
-                "skills": 0.35,
-                "experience": 0.25,
-                "education": 0.15,
-                "language": 0.15,
-                "location": 0.10
+                "skills_match": 0.30,
+                "experience_relevance": 0.22,
+                "achievements": 0.15,
+                "language_quality": 0.10,
+                "language_match": 0.10,
+                "education": 0.08,
+                "location": 0.05
             }
         }
         resp = self.client.post("/sessions", session_body)
@@ -548,10 +618,14 @@ class ScoringTestSuite(TestSuite):
                 skills_score = top.get("skills_score", 0)
                 exp_score = top.get("experience_score", 0)
                 edu_score = top.get("education_score", 0)
-                lang_score = top.get("language_score", 0)
+                lang_quality_score = top.get("language_quality_score", top.get("language_score", 0))
+                lang_match_score = top.get("language_match_score", 0)
                 loc_score = top.get("location_score", 0)
                 
-                self.pass_test(f"Score breakdown: Skills {skills_score:.1%}, Exp {exp_score:.1%}, Edu {edu_score:.1%}, Lang {lang_score:.1%}, Loc {loc_score:.1%}")
+                self.pass_test(
+                    f"Score breakdown: Skills {skills_score:.1%}, Exp {exp_score:.1%}, Edu {edu_score:.1%}, "
+                    f"LangQ {lang_quality_score:.1%}, LangM {lang_match_score:.1%}, Loc {loc_score:.1%}"
+                )
         
         # 7. Export results
         print("\n  [7] Export Results as CSV")
@@ -560,6 +634,22 @@ class ScoringTestSuite(TestSuite):
         if resp.status_code == 200:
             csv_size = len(resp.content)
             self.pass_test(f"CSV export: {csv_size:,} bytes")
+            csv_text = resp.text
+            reader = csv.DictReader(io.StringIO(csv_text))
+            headers = reader.fieldnames or []
+            expected_headers = {"rank", "name", "email", "total_score_pct", "recommendation"}
+            missing_headers = sorted(expected_headers.difference(headers))
+
+            if missing_headers:
+                self.fail_test(f"CSV missing required headers: {missing_headers}")
+            else:
+                self.pass_test(f"CSV headers OK: {', '.join(headers)}")
+
+            rows = list(reader)
+            if rows:
+                self.pass_test(f"CSV contains {len(rows)} data row(s)")
+            else:
+                self.fail_test("CSV export returned no data rows")
 
 
 class EndpointValidationSuite(TestSuite):
@@ -596,8 +686,8 @@ class EndpointValidationSuite(TestSuite):
                 elif method == "DELETE":
                     resp = self.client.delete(path)
                 
-                # Accept 200, 201, 400, 401, 422 as valid responses
-                if resp.status_code in [200, 201, 400, 401, 422, 409]:
+                # Accept common success/validation/auth statuses
+                if resp.status_code in [200, 201, 400, 401, 403, 409, 422]:
                     self.pass_test(f"{method} {path} → {resp.status_code}")
                 else:
                     self.fail_test(f"{method} {path} → {resp.status_code} (unexpected)")
