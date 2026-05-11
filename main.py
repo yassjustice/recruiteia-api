@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from database import engine
+from database import engine, get_database_health_snapshot, SessionLocal
+from db_sync import get_sync_status, register_outbox_hooks, start_db_sync_worker
 import src.api.models as models
 
 # Create all tables on startup — non-fatal if DB unreachable (e.g. cold start race)
@@ -36,9 +37,26 @@ app.include_router(sessions.router, prefix="/api")
 app.include_router(results.router, prefix="/api")
 
 
+@app.on_event("startup")
+def _startup_sync_services():
+    register_outbox_hooks(SessionLocal)
+    start_db_sync_worker()
+
+
 @app.get("/api/health")
 def health():
     return {"success": True, "data": {"status": "ok", "version": "1.0.0"}}
+
+
+@app.get("/api/health/db")
+def health_db():
+    return {
+        "success": True,
+        "data": {
+            "database": get_database_health_snapshot(),
+            "sync": get_sync_status(),
+        },
+    }
 
 
 @app.get("/")

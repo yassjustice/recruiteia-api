@@ -15,6 +15,12 @@
 
 ## Changelog
 
+- **2026-05-11 (dual-db sync + ops health):**
+  - Added dual-db synchronization using outbox events + background sync worker (primary <-> fallback).
+  - No frontend contract change: endpoint paths, payloads, and response schemas are unchanged.
+  - Added optional ops endpoint `GET /health/db` to inspect active DB and sync status.
+  - Consistency model is now eventual consistency across primary and fallback databases.
+
 - **2026-05-10 (scoring update):**
   - `experience_relevance` is computed via Groq (notebook-parity behavior) with md5 cache on experience+JD summary.
   - API response contract is unchanged: scores remain `0..1` (`total_score`, `final_score`) and `final_score_pct` remains `0..100`.
@@ -358,12 +364,71 @@ CSV export with V2 score columns.
 
 ---
 
+## Database consistency model (dual-db mode)
+
+1. **Write behavior (API contract unchanged):**
+   - Requests are accepted against the active DB (`primary` or `fallback`).
+   - Every DB write generates an outbox event (`upsert`/`delete`) internally.
+   - A background worker replays outbox events to the other DB.
+
+2. **Consistency guarantee:**
+   - Cross-database synchronization is **eventual consistency** (not strict transactional consistency).
+   - Short drift windows can happen during outages, then converge after recovery.
+
+3. **Frontend impact:**
+   - No required frontend changes.
+   - Existing endpoints and response fields remain stable.
+
+4. **Operational note:**
+   - For monitoring/debug only, use `GET /health/db` (optional endpoint).
+
+---
+
 ## Health
 
 ### GET `/health`
 
 ```json
 {"success": true, "data": {"status": "ok", "version": "1.0.0"}}
+```
+
+### GET `/health/db` (ops/debug)
+
+```json
+{
+  "success": true,
+  "data": {
+    "database": {
+      "mode": "dual",
+      "active_database": "fallback",
+      "active_database_url": "sqlite:///./data/recruiteia_fallback.db",
+      "using_fallback_db": true,
+      "primary": {
+        "reachable": true,
+        "database_url": "postgresql://aws-1-eu-central-1.pooler.supabase.com:5432/postgres",
+        "error": null
+      },
+      "fallback": {
+        "reachable": true,
+        "database_url": "sqlite:///./data/recruiteia_fallback.db",
+        "error": null
+      }
+    },
+    "sync": {
+      "enabled": true,
+      "running": true,
+      "last_run_at": "2026-05-11T10:00:00+00:00",
+      "last_success_at": "2026-05-11T10:00:00+00:00",
+      "last_error": null,
+      "processed_events_total": 120,
+      "failed_events_total": 0,
+      "last_cycle": {
+        "primary_to_fallback": {"processed": 2, "failed": 0, "pending_after": 0},
+        "fallback_to_primary": {"processed": 1, "failed": 0, "pending_after": 0}
+      }
+    }
+  }
+}
 ```
 
 ---
