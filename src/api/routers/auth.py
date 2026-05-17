@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from database import get_db
 from src.api.models import User
 from src.api.schemas import UserCreate, LoginRequest
 from src.api.auth_utils import hash_password, verify_password, create_access_token
+from src.api.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,5 +58,19 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
                 "role": user.role,
                 "created_at": user.created_at,
             },
+        },
+    }
+
+
+@router.get("/me")
+def get_me(user: User = Depends(get_current_user)):
+    return {
+        "success": True,
+        "data": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "created_at": user.created_at,
         },
     }

@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import Any, List, Optional
 from uuid import UUID
 
@@ -179,21 +179,6 @@ class WeightsIn(BaseModel):
         assert 0.0 <= v <= 1.0, "Weight must be between 0 and 1"
         return round(v, 4)
 
-    @model_validator(mode="after")
-    def validate_sum(self):
-        total = (
-            self.skills_match
-            + self.experience_relevance
-            + self.achievements
-            + self.language_quality
-            + self.language_match
-            + self.education
-            + self.location
-        )
-        if not (0.99 <= total <= 1.01):
-            raise ValueError(f"Weights must sum to 1.0 (got {round(total, 4)})")
-        return self
-
     def as_dict(self) -> dict:
         return {
             "skills_match": self.skills_match,
@@ -226,7 +211,7 @@ class SessionOut(BaseModel):
     id: UUID
     user_id: UUID
     offer_id: UUID
-    name: str
+    name: Optional[str] = None
     status: str
     total_cvs: int
     processed_cvs: int
