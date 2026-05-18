@@ -97,7 +97,10 @@ def extract_offer(body: dict, user: User = Depends(get_current_user)):
     lang = body.get("lang", "fr")
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
-    extracted = extract_job_offer(text, lang)
+    try:
+        extracted = extract_job_offer(text, lang)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
     return {"success": True, "data": extracted}
 
 

@@ -89,6 +89,16 @@ def _ensure_list(value: Any) -> list:
     return []
 
 
+def _safe_int(value: Any, default: int = 0) -> int:
+    """Convert Groq-returned years values to int safely.
+    Handles strings like "3+", "3.0", "3 years", None, or already-int values.
+    """
+    try:
+        return int(float(str(value).strip().rstrip("+")))
+    except (TypeError, ValueError):
+        return default
+
+
 def _extract_jd_text(source: str) -> str:
     if isinstance(source, str) and pathlib.Path(source).exists():
         path = pathlib.Path(source)
@@ -380,7 +390,7 @@ def extract_jd(source: str, lang: Optional[str] = None) -> dict:
     required_skills = _ensure_list(parsed.get("required_skills"))
     critical_skills = _ensure_list(parsed.get("critical_skills"))
     required_languages = _normalize_required_languages(parsed.get("required_languages"))
-    experience_required_years = int(parsed.get("experience_required_years") or 0)
+    experience_required_years = _safe_int(parsed.get("experience_required_years"), 0)
     seniority = parsed.get("seniority") or infer_seniority(experience_required_years)
 
     result = {
