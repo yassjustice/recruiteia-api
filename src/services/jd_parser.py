@@ -243,7 +243,7 @@ RULES:
 
 JOB DESCRIPTION:
 \"\"\"
-{text[:5000]}
+{text[:20000]}
 \"\"\"
 """
 
@@ -252,7 +252,7 @@ JOB DESCRIPTION:
             model=GROQ_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
-            max_tokens=1800,
+            max_tokens=2500,
         )
         raw = (response.choices[0].message.content or "").strip()
         raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
