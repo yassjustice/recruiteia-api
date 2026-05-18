@@ -100,7 +100,22 @@ def _safe_int(value: Any, default: int = 0) -> int:
 
 
 def _extract_jd_text(source: str) -> str:
-    if isinstance(source, str) and pathlib.Path(source).exists():
+    # Guard: file paths never contain newlines and are short — skip the
+    # syscall for plain JD text (avoids [Errno 36] ENAMETOOLONG on Linux)
+    _looks_like_path = (
+        isinstance(source, str)
+        and "\n" not in source
+        and len(source) < 512
+    )
+    if _looks_like_path:
+        try:
+            exists = pathlib.Path(source).exists()
+        except OSError:
+            exists = False
+    else:
+        exists = False
+
+    if exists:
         path = pathlib.Path(source)
         if path.suffix.lower() == ".pdf":
             import pdfplumber
