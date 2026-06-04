@@ -13,6 +13,13 @@ import os
 import unittest
 from unittest.mock import patch
 
+# Make console output UTF-8 safe on Windows (cp1252 cannot encode ✅/❌)
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 # Ensure src is importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

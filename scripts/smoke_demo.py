@@ -29,6 +29,13 @@ import json
 import requests
 from pathlib import Path
 
+# Make console output UTF-8 safe on Windows (cp1252 cannot encode ✅/❌/→)
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 BASE_URL = os.environ.get("RECRUTE_BASE_URL", "https://yassirhakimi-recruiteia-api.hf.space/api")
 EMAIL = os.environ.get("RECRUTE_EMAIL", "demo@recruteai.test")
 PASSWORD = os.environ.get("RECRUTE_PASSWORD", "DemoRecruteIA2026!")
