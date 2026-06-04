@@ -1,3 +1,5 @@
+> ⚠️ HISTORICAL / DRIFTED — superseded by /audit and STATE.md. See audit/05_DOC_DRIFT_LOG.md.
+
 # RecruteIA Frontend Integration Notes
 ## WordPress / JavaScript Team
 

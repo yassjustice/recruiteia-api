@@ -23,7 +23,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS — allow all origins for dev/demo (Otman's WordPress frontend)
+# CORS — allow all origins for dev/demo (Next.js frontend on Vercel)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
