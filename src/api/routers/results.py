@@ -15,6 +15,46 @@ from src.api.dependencies import get_current_user
 router = APIRouter(prefix="/sessions", tags=["results"])
 
 
+def _derive_strengths(mr: MatchingResult) -> list[str]:
+    """REQ-M3-8: derive an explicit list of candidate strengths from scored dimensions."""
+    strengths = []
+    matched = mr.matched_skills or []
+    critical_missing = mr.critical_missing or []
+    exp_score = float(mr.experience_score or 0.0)
+    skills_score = float(mr.skills_score or 0.0)
+    achieve_score = float(mr.achievements_score or 0.0)
+    lang_match = float(mr.language_match_score or 0.0)
+    edu_score = float(mr.education_score or 0.0)
+
+    if matched and not critical_missing:
+        strengths.append(f"Toutes les compétences critiques présentes ({len(matched)} compétences matchées)")
+    elif matched:
+        strengths.append(f"{len(matched)} compétence(s) requise(s) présente(s)")
+
+    if exp_score >= 0.80:
+        strengths.append("Expérience très pertinente par rapport au poste")
+    elif exp_score >= 0.60:
+        strengths.append("Expérience pertinente pour le poste")
+
+    if achieve_score >= 0.70:
+        strengths.append("Réalisations chiffrées significatives (impact démontré)")
+    elif achieve_score >= 0.35:
+        strengths.append("Réalisations chiffrées présentes")
+
+    if lang_match >= 0.90:
+        strengths.append("Maîtrise complète des langues requises")
+    elif lang_match >= 0.60:
+        strengths.append("Bonne correspondance linguistique")
+
+    if edu_score >= 1.0:
+        strengths.append("Niveau de formation supérieur ou égal au requis")
+
+    if bool(mr.student_profile_detected):
+        strengths.append("Profil étudiant avec projets pertinents")
+
+    return strengths
+
+
 def _serialize_result(mr: MatchingResult, cv: CV) -> dict:
     total_score = float(mr.total_score or 0.0)
     language_score_legacy = (
@@ -46,6 +86,7 @@ def _serialize_result(mr: MatchingResult, cv: CV) -> dict:
         "missing_critical": mr.critical_missing or [],  # backward compatibility
         "language_details": mr.language_details or [],
         "flags": mr.flags or [],
+        "strengths": _derive_strengths(mr),  # REQ-M3-8: explicit candidate strengths
         "missing_critical_count": mr.missing_critical_count or 0,
         "confidence_multiplier_applied": bool(mr.confidence_multiplier_applied),
         "student_profile_detected": bool(mr.student_profile_detected),
