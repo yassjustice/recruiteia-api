@@ -1,19 +1,7 @@
-RISE HIRE - ONE PAGE LOGIN CREDENTIALS (DEV + INITIAL ACCOUNTS)
-Generated: 2026-05-08
-
-1) Documented Dev/Test Login (from docs/API.md)
-- Email: recruiter@company.ma
-- Password: StrongPass@123
-- Notes: This pair is used in the API documentation examples for register/login flows.
-
-2) Initial Seeded Accounts in Backend Code
-- Result: NONE FOUND
-- Notes: The backend does not seed default users in code (no hardcoded initial user credentials detected).
-
-3) Accounts Already Created in Database
-- Plaintext passwords are NOT retrievable from backend code (only hashed_password is stored by design).
-- Current environment could not resolve the configured remote DB host during lookup, so live account listing could not be fetched from this machine.
-
-4) Practical Recovery for Existing Accounts
-- Use normal login if you know the original password.
-- If a password is lost, create a new account via POST /api/auth/register, then log in via POST /api/auth/login.
+SECRETS REMOVED - 2026-06-04
+This file previously contained plaintext credentials and has been scrubbed.
+Real credentials live ONLY in:
+  - HF Space Secrets (backend: GROQ_API_KEY, DATABASE_URL, SECRET_KEY)
+  - Vercel Environment Variables (frontend: NEXT_PUBLIC_API_URL)
+  - Local .env file (gitignored -- see .env.example for the template)
+Never re-add real secrets to this file.

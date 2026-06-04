@@ -16,7 +16,7 @@ Host:       db.ogthbkujcprkmeykhict.supabase.co
 Port:       5432
 Database:   postgres
 Username:   postgres
-Password:   recruiteia@123 (in production secrets)
+Password:   [DB-PASSWORD] (in production secrets)
 Project ID: ogthbkujcprkmeykhict
 Connection: Secure TCP/SSL
 ```
@@ -32,7 +32,7 @@ Connection: Secure TCP/SSL
 
 **Environment Variable:**
 ```
-DATABASE_URL=postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
 ```
 
 ### Fallback: SQLite (Local)

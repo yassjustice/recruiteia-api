@@ -81,7 +81,7 @@ UPLOAD_DIR=data/uploads
 
 For production (Supabase), use:
 ```
-DATABASE_URL=postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
 ```
 
 ## 📚 API Endpoints

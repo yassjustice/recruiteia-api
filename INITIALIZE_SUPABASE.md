@@ -139,14 +139,14 @@ Your Supabase database will be ready for:
 ```bash
 # Make sure DATABASE_URL is set
 echo $DATABASE_URL
-# Should show: postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+# Should show: postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
 ```
 
 ### Issue: "Permission denied" in Supabase
 
 **Solution:** Use the `postgres` user (not authenticated user)
 - Use the full connection string from `.env`
-- Ensure PASSWORD is correct: `recruiteia@123`
+- Ensure PASSWORD is correct: `[DB-PASSWORD]`
 
 ### Issue: Tables already exist
 

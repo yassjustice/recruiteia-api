@@ -193,11 +193,11 @@ recruitment-ai/
 ### **"Python script hangs on connection"**
 → Check .env has correct DATABASE_URL:
 ```
-postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
 ```
 
 ### **"Permission denied" error**
-→ Verify password is exactly: `recruiteia@123`
+→ Verify password is exactly: `[DB-PASSWORD]`
 
 ### **"SSL certificate verify failed"**
 → Supabase requires SSL. Ensure SSLMODE=require
@@ -284,4 +284,4 @@ Inside the files you'll find:
 
 **Created:** May 10, 2026  
 **Database:** Supabase PostgreSQL (ogthbkujcprkmeykhict)  
-**Connection:** `postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres`
+**Connection:** `postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres`

@@ -2,6 +2,17 @@ data/*
 !data/.gitkeep
 __pycache__/
 *.pyc
+*.pyo
 venv/
 .env
+.env.local
+.env.*.local
 docs/presentation/*.pdf
+# Secret / credential files — never commit
+*api*key*.txt
+*creds*.txt
+*credentials*.txt
+*credentials*.md
+*login_creds*.txt
+*_access.txt
+creds_local_env/

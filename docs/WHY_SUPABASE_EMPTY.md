@@ -220,7 +220,7 @@ The API will now work end-to-end:
 📋 TECHNICAL DETAILS:
 ──────────────────────────────────────────────────────────────────
 
-Database URL: postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+Database URL: postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
 
 Connection Details:
   • Host: db.ogthbkujcprkmeykhict.supabase.co
@@ -250,10 +250,10 @@ Fix: Follow METHOD 1 above to initialize schema
 
 Issue: Python script hangs when connecting
 Fix: Check DATABASE_URL in .env is correct
-     Should be: postgresql://postgres:recruiteia@123@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+     Should be: postgresql://postgres:[DB-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
 
 Issue: "Permission denied" error
-Fix: Use password "recruiteia@123" (exactly as shown)
+Fix: Use password "[DB-PASSWORD]" (exactly as shown)
 
 Issue: Tables already exist
 Fix: Drop first: python init_database.py --drop
