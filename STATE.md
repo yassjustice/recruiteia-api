@@ -4,6 +4,7 @@
 > It supersedes any older PRD, prior audit, or note that contradicts it.
 > Requirements source: `brief/PFF FQIA sujet 3 2026.pdf` (distilled in `audit/01_BRIEF_REQUIREMENTS.md`).
 > Technical audit lives in `audit/` at the workspace root.
+> **Architecture diagram:** [RecruteIA-FQIA-PFF3/assets/diagrams/architecture.png](https://github.com/yassjustice/RecruteIA-FQIA-PFF3/blob/master/assets/diagrams/architecture.png)
 
 ---
 
