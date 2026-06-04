@@ -7,7 +7,11 @@ sdk: docker
 pinned: false
 ---
 
-# RecruteIA API
+# RecruteIA API — Backend
+
+> **Part of RecruteIA (FQIA PFF N°3).**
+> **Front-door repo (setup instructions + full docs):** [yassjustice/RecruteIA-FQIA-PFF3](https://github.com/yassjustice/RecruteIA-FQIA-PFF3)
+> **System ground truth:** [STATE.md](STATE.md) · **Scoring engine:** [docs/SCORING_RATIONALE.md](docs/SCORING_RATIONALE.md)
 
 FastAPI backend for AI-powered CV screening and intelligent recruitment.
 
@@ -26,7 +30,7 @@ FastAPI backend for AI-powered CV screening and intelligent recruitment.
 - **Database**: Supabase PostgreSQL (primary) with SQLite automatic failover
 - **ORM**: SQLAlchemy 2.0.30
 - **Authentication**: JWT (python-jose) + bcrypt
-- **AI/NLP**: Groq LLM (Claude-3) + spaCy
+- **AI/NLP**: Groq LLM (`llama-3.3-70b-versatile`) + spaCy (sm models)
 - **Document Processing**: pdfplumber + python-docx
 - **Containerization**: Docker (Python 3.11-slim)
 
