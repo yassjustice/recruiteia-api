@@ -1,0 +1,68 @@
+Développeur(se) Backend Python — Poste Permanent
+
+Entreprise : TechSolutions Maroc  
+Lieu : Casablanca (ou télétravail partiel)  
+Secteur : FinTech / Recrutement IA  
+
+---
+
+DESCRIPTION DU POSTE
+
+Nous recherchons un(e) développeur(se) Backend Python expérimenté(e) pour rejoindre notre équipe engineering. Vous serez responsable de la conception, du développement et du déploiement de microservices FastAPI scalables alimentant notre plateforme SaaS de recrutement.
+
+---
+
+COMPÉTENCES REQUISES
+
+Compétences essentielles (indispensables) :
+- Python (3.9+) — maîtrise avancée
+- FastAPI ou Django REST Framework
+- PostgreSQL / SQL — conception de schémas, optimisation de requêtes
+- Docker et déploiement containerisé
+- Git et travail en équipe (code reviews, branching strategy)
+
+Compétences appréciées :
+- Redis (cache, files de tâches)
+- spaCy ou bibliothèques NLP Python
+- CI/CD (GitHub Actions, GitLab CI)
+- Connaissance des LLMs et APIs d'IA (OpenAI, Groq, Mistral)
+- Pandas / NumPy pour le traitement de données
+
+---
+
+LANGUES
+
+- Français : niveau courant requis (minimum B2)
+- Anglais : niveau intermédiaire (B1 minimum) — documentation et réunions internationales
+
+---
+
+EXPÉRIENCE
+
+- Minimum 2 ans d'expérience en développement backend Python
+- Expérience avec des systèmes en production (pas uniquement académique)
+
+---
+
+FORMATION
+
+- Licence ou Master en Informatique, Génie Logiciel ou domaine équivalent
+
+---
+
+AVANTAGES
+
+- Télétravail 2 jours/semaine
+- Mutuelle santé
+- Formation continue (budget formation annuel)
+- Stack technique moderne (Python 3.11, FastAPI, Groq, Supabase)
+
+---
+
+PROCESS DE RECRUTEMENT
+
+1. Entretien RH (30 min)
+2. Test technique (2h)
+3. Entretien technique avec le CTO
+
+Candidatures : rh@techsolutions-demo.ma
