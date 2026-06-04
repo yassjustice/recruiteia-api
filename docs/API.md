@@ -405,7 +405,7 @@ CSV export with V2 score columns.
       "using_fallback_db": true,
       "primary": {
         "reachable": true,
-        "database_url": "postgresql://aws-1-eu-central-1.pooler.supabase.com:5432/postgres",
+        "database_url": "postgresql://<your-supabase-pooler-host>:5432/postgres",
         "error": null
       },
       "fallback": {
@@ -444,4 +444,31 @@ Frontend should treat both as auth failure:
 if (response.status === 401 || response.status === 403) {
   // force relogin
 }
+```
+
+---
+
+## Future task (security lint follow-up)
+
+- **Title:** RLS Disabled in Public  
+- **Entity:** `public.outbox_events`  
+- **Issue:** Table is in exposed `public` schema and RLS is not enabled.
+
+**Planned fix:**
+
+```sql
+alter table public.outbox_events enable row level security;
+
+create policy "deny all client access"
+on public.outbox_events
+for all
+to anon, authenticated
+using (false)
+with check (false);
+```
+
+Optional hardening for stricter enforcement:
+
+```sql
+alter table public.outbox_events force row level security;
 ```

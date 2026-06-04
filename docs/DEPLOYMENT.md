@@ -125,7 +125,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
 ```
 GROQ_API_KEY=gsk_***
 SECRET_KEY=***
-DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.ogthbkujcprkmeykhict.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.<your-project-ref>.supabase.co:5432/postgres
 ACCESS_TOKEN_EXPIRE_HOURS=24
 ```
 
