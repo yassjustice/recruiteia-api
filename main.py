@@ -7,7 +7,7 @@ from config import settings
 from database import engine, get_database_health_snapshot, SessionLocal, get_db
 from db_sync import get_sync_status, register_outbox_hooks, start_db_sync_worker
 import src.api.models as models
-from src.api.models import User, JobOffer, CV, ScreeningSession
+from src.api.models import User, JobOffer, CV, ScreeningSession, MatchingResult
 from src.api.dependencies import get_current_user
 
 # Create all tables on startup — non-fatal if DB unreachable (e.g. cold start race)
@@ -87,13 +87,25 @@ def health_db():
 
 @app.get("/api/stats/summary")
 def stats_summary(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    total_offers = db.query(JobOffer).filter(JobOffer.user_id == user.id).count()
+    total_offers = db.query(JobOffer).filter(
+        JobOffer.user_id == user.id, JobOffer.status == "active"
+    ).count()
     total_cvs = db.query(CV).filter(CV.user_id == user.id).count()
     total_sessions = db.query(ScreeningSession).filter(ScreeningSession.user_id == user.id).count()
     active_sessions = db.query(ScreeningSession).filter(
         ScreeningSession.user_id == user.id,
-        ScreeningSession.status.in_(["pending", "running"]),
+        ScreeningSession.status.in_(["pending", "processing"]),
     ).count()
+    completed_sessions = db.query(ScreeningSession).filter(
+        ScreeningSession.user_id == user.id,
+        ScreeningSession.status == "completed",
+    ).count()
+    total_candidates_scored = (
+        db.query(MatchingResult)
+        .join(ScreeningSession, MatchingResult.session_id == ScreeningSession.id)
+        .filter(ScreeningSession.user_id == user.id, MatchingResult.status == "scored")
+        .count()
+    )
     return {
         "success": True,
         "data": {
@@ -101,6 +113,8 @@ def stats_summary(user: User = Depends(get_current_user), db: Session = Depends(
             "total_sessions": total_sessions,
             "total_cvs": total_cvs,
             "active_sessions": active_sessions,
+            "completed_sessions": completed_sessions,
+            "total_candidates_scored": total_candidates_scored,
         },
     }
 
