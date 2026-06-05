@@ -210,29 +210,43 @@ def detect_language(text: str) -> str:
 # ── Groq section parser ────────────────────────────────────────────────────────
 def parse_sections_groq(text: str, lang: str) -> dict:
     lang_hint = "The resume is in French." if lang == "fr" else "The resume is in English."
-    prompt = f"""You are a resume parser. {lang_hint}
-Return ONLY a valid JSON object, no explanation, no markdown.
+    prompt = f"""You are an expert ATS resume parser. {lang_hint}
+The text was extracted from a PDF and MAY be jumbled or interleaved (two-column layouts mix the
+sidebar with the main column). Reconstruct the candidate's information logically and carefully.
 
+Return ONLY a valid JSON object (no markdown, no comments) with EXACTLY these keys:
 {{
-  "name": "full name of the candidate only",
-  "location": "city or region only",
-  "profile": "professional summary paragraph",
-  "experience": ["each job as a string: title at company (date range): description"],
-  "education": ["each degree as string: degree at school (year)"],
-  "projects": ["each project as a string"],
-  "certifications": ["list of certifications"],
-  "skills": ["list of technical skills"],
-  "soft_skills": ["list of soft skills"],
-  "languages_spoken": [{{"language": "French", "level": "Native"}}],
-  "interests": ["list of interests/hobbies"],
-  "experience_years": 0,
-  "education_level": "Bachelor|Master|PhD|BTS|Bac",
-  "industry": "main industry/domain"
+  "name": "candidate full name only (not a section header)",
+  "phone": "the phone number as written (e.g. +212 6 05 61 68 55) — never a date",
+  "location": "city/region only",
+  "profile": "1-2 sentence professional summary. If none is written, synthesize one from the title and most recent experience.",
+  "experience": ["one string per job, formatted EXACTLY: <job title> — <company/organization> (<date range>): <short description>"],
+  "education": ["one string per diploma, formatted EXACTLY: <degree> — <institution> (<year or range>)"],
+  "projects": ["personal/side projects only — do NOT duplicate work experience here"],
+  "certifications": ["certifications only"],
+  "skills": ["technical skills/tools only — split combined tokens, no section headers"],
+  "soft_skills": ["soft skills only"],
+  "languages_spoken": [{{"language": "Français", "level": "Professionnel"}}],
+  "interests": ["hobbies/interests"],
+  "experience_years": <number: total years of professional experience, estimated from the dates>,
+  "education_level": "PhD|Master|Bachelor|BTS|Bac+2|Bac|None (highest obtained)",
+  "industry": "main industry/domain in 1-3 words"
 }}
+
+CRITICAL RULES:
+- Keep company and institution names COMPLETE and EXACT — do not drop or merge words, and never
+  invent them. If a job has no clear company, use "" for the company part.
+- Section headers (CONTACT, LANGUES, PROFIL, COMPÉTENCES, FORMATION, EXPÉRIENCE, "Outils de
+  développement", etc.), portfolio URLs and template watermarks are NOT names/companies/skills — ignore them.
+- Associate each bullet/description with the MOST RELEVANT job by its content; if unsure, keep the
+  description short or empty rather than attaching it to the wrong job.
+- "phone" must be a phone number, NEVER a date or year range.
+- Fix obviously garbled accents (é, è, à, ç) in your output and use proper French language names.
+- Do not duplicate the same entry across experience, education and projects.
 
 Resume text:
 \"\"\"
-{text[:6000]}
+{text[:8000]}
 \"\"\"
 """
     try:
@@ -253,23 +267,81 @@ Resume text:
 
 # ── Contact extractors ─────────────────────────────────────────────────────────
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
-_PHONE_STRICT = re.compile(r"(?:\+212\s?(?:\(0\)\s?)?[5-7]\d(?:[\s.\-]?\d{2}){4}|0[5-8]\d(?:[\s.\-]?\d{2}){4})")
-_PHONE_FLEX = re.compile(r"\+?\d[\d\s().\-]{7,}\d")
-_LINKEDIN_RE = re.compile(r"(?:https?://)?(?:www\.)?linkedin\.com/in/[^\s]+|linkedin[:\s]+[\w-]+", re.IGNORECASE)
-_GITHUB_RE = re.compile(r"(?:https?://)?(?:www\.)?github\.com/[^\s]+|github[:\s]+[\w-]+", re.IGNORECASE)
+# Moroccan mobile/landline (+212 / 0 prefix, 9 significant digits) and generic international
+_PHONE_MA = re.compile(r"(?:(?:\+|00)\s?212|0)\s?\(?0?\)?[\s.\-]?[5-7](?:[\s.\-]?\d){8}")
+_PHONE_INTL = re.compile(r"\+\d{1,3}(?:[\s.\-]?\d){7,12}")
+_LINKEDIN_RE = re.compile(r"(?:https?://)?(?:[a-z]{2,3}\.)?linkedin\.com/(?:in/|pub/)?[\w\-%./]+", re.IGNORECASE)
+_GITHUB_RE = re.compile(r"(?:https?://)?(?:www\.)?github\.com/[\w\-]+", re.IGNORECASE)
+
+
+def _fix_mojibake(text: str) -> str:
+    """Fix common PDF-template font mis-mappings where an uppercase accent appears
+    inside a lowercase word (e.g. 'DÈveloppement' -> 'Développement', 'FranÁais' -> 'Français')."""
+    if not text:
+        return text
+    # An uppercase accent touching a lowercase letter (before or after) is a font mis-map,
+    # not a real all-caps header. Replace it; leave all-caps headers (e.g. LANGUES) untouched.
+    text = re.sub(r"È(?=[a-zà-ÿ])|(?<=[a-zà-ÿ])È", "é", text)
+    text = re.sub(r"Á(?=[a-zà-ÿ])|(?<=[a-zà-ÿ])Á", "ç", text)
+    text = re.sub(r"Ë(?=[a-zà-ÿ])|(?<=[a-zà-ÿ])Ë", "è", text)
+    return text
+
+
+def _extract_phone(text: str) -> str:
+    """Robustly pick a phone number, never a date/year range."""
+    for rx in (_PHONE_MA, _PHONE_INTL):
+        for m in rx.finditer(text):
+            cand = m.group(0).strip()
+            if "/" in cand:  # date like 03/2024
+                continue
+            digits = re.sub(r"\D", "", cand)
+            if not (9 <= len(digits) <= 15):
+                continue
+            if len(set(digits)) <= 1:  # 0000000000
+                continue
+            # reject year-range-looking 8-digit blobs (e.g. 20172018)
+            if len(digits) == 8 and digits[:2] in ("19", "20") and digits[4:6] in ("19", "20"):
+                continue
+            return re.sub(r"\s{2,}", " ", cand)
+    return ""
+
+
+_LANG_NAME_FIX = {
+    "francais": "Français", "français": "Français", "franáais": "Français", "franглais": "Français",
+    "anglais": "Anglais", "english": "Anglais", "arabe": "Arabe", "arabic": "Arabe",
+    "espagnol": "Espagnol", "spanish": "Espagnol", "allemand": "Allemand", "german": "Allemand",
+}
+
+
+def _normalize_languages(langs: list) -> list:
+    out = []
+    for entry in langs or []:
+        if not isinstance(entry, dict):
+            continue
+        name = _fix_mojibake(str(entry.get("language", "")).strip())
+        fixed = _LANG_NAME_FIX.get(name.lower(), name)
+        level = str(entry.get("level", "")).strip()
+        if fixed:
+            out.append({"language": fixed, "level": level})
+    return out
 
 
 def extract_contact_info(text: str, groq_data: dict) -> dict:
     email_m = _EMAIL_RE.search(text)
-    phone_m = _PHONE_STRICT.search(text) or _PHONE_FLEX.search(text)
     linkedin_m = _LINKEDIN_RE.search(text)
     github_m = _GITHUB_RE.search(text)
 
+    phone = _extract_phone(text)
+    if not phone:
+        llm_phone = str(groq_data.get("phone", "") or "").strip()
+        if llm_phone and "/" not in llm_phone and 9 <= len(re.sub(r"\D", "", llm_phone)) <= 15:
+            phone = llm_phone
+
     return {
-        "name": groq_data.get("name", ""),
+        "name": _fix_mojibake(groq_data.get("name", "") or ""),
         "email": email_m.group(0) if email_m else "",
-        "phone": phone_m.group(0).strip() if phone_m else "",
-        "location": groq_data.get("location", ""),
+        "phone": phone,
+        "location": _fix_mojibake(groq_data.get("location", "") or ""),
         "linkedin": linkedin_m.group(0) if linkedin_m else "",
         "github": github_m.group(0) if github_m else "",
     }
@@ -365,6 +437,7 @@ def compute_confidence_score(sections: dict, contact: dict) -> dict:
 def extract_resume(filepath: str) -> dict:
     raw_text = extract_raw_text(filepath)
     raw_text = normalize_spaced_text(raw_text)
+    raw_text = _fix_mojibake(raw_text)
     if not raw_text.strip():
         return {"file": filepath, "error": "no_text_extracted"}
 
@@ -382,18 +455,18 @@ def extract_resume(filepath: str) -> dict:
         "file": filepath,
         **contact,
         "language": lang,
-        "profile": groq_data.get("profile", ""),
-        "experience": experience_list,
-        "education": groq_data.get("education", []),
-        "projects": groq_data.get("projects", []),
+        "profile": _fix_mojibake(groq_data.get("profile", "") or ""),
+        "experience": [_fix_mojibake(str(x)) for x in (experience_list or [])],
+        "education": [_fix_mojibake(str(x)) for x in (groq_data.get("education", []) or [])],
+        "projects": [_fix_mojibake(str(x)) for x in (groq_data.get("projects", []) or [])],
         "certifications": groq_data.get("certifications", []),
         "skills": skills,
         "soft_skills": soft_skills,
-        "languages_spoken": groq_data.get("languages_spoken", []),
+        "languages_spoken": _normalize_languages(groq_data.get("languages_spoken", [])),
         "interests": groq_data.get("interests", []),
         "experience_years": float(groq_data.get("experience_years", 0) or 0),
         "education_level": groq_data.get("education_level", ""),
-        "industry": groq_data.get("industry", ""),
+        "industry": _fix_mojibake(groq_data.get("industry", "") or ""),
         **enrichment,
         **confidence,
     }
