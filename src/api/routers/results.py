@@ -181,8 +181,10 @@ def export_csv(session_id: UUID, db: Session = Depends(get_db), user: User = Dep
             "status": row["status"],
         })
     output.seek(0)
+    # Prepend a UTF-8 BOM so Excel reads accented French (é, è, à, ç) correctly.
+    body = "﻿" + output.getvalue()
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
+        iter([body]),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=session_{session_id}_results.csv"},
     )
